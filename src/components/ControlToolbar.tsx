@@ -1,3 +1,4 @@
+
 import React from 'react';
 import {
   Play,
@@ -44,6 +45,11 @@ const SPEED_PRESETS = [
   { label: 'MAX', value: 60, title: 'Uncapped (~300+ gen/s)' },
 ];
 
+const divider = 'mx-1.5 h-6 w-px shrink-0 bg-white/[0.10]';
+
+const toolButton =
+  'flex h-8 w-8 items-center justify-center text-[#929D94] transition-colors hover:bg-white/[0.06] hover:text-[#E5EBE5] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#A6D96A]';
+
 export const ControlToolbar: React.FC<ControlToolbarProps> = ({
   isRunning,
   onTogglePlay,
@@ -62,104 +68,103 @@ export const ControlToolbar: React.FC<ControlToolbarProps> = ({
   onClear,
 }) => {
   return (
-    <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-30 flex flex-col items-center gap-1.5 select-none max-w-[98vw]">
-      {/* Pattern Stamping Mode Context Ribbon */}
+    <div className="fixed bottom-4 left-1/2 z-30 flex max-w-[calc(100vw-24px)] -translate-x-1/2 flex-col items-center gap-1.5 select-none">
+      {/* Pattern placement context */}
       {selectedPattern && (
-        <div className="flex items-center space-x-2 px-2.5 py-1 rounded bg-sim-elevated border border-sim-accent/40 shadow-hud text-xs text-sim-text-primary animate-fadeIn">
-          <div className="flex items-center space-x-1.5">
-            <span className="w-1.5 h-1.5 rounded-full bg-sim-accent animate-pulse" />
-            <span className="text-sim-text-secondary text-[11px] font-mono">STAMP:</span>
-            <span className="font-medium text-sim-text-primary text-xs">{selectedPattern.name}</span>
-          </div>
-          <div className="h-3 w-px bg-sim-border" />
+        <div className="flex max-w-full items-center gap-3 border border-[#394332] bg-[#141914] px-3 py-2 text-xs shadow-lg shadow-black/20 animate-fadeIn">
+          <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-[#A6D96A]" />
+
+          <span className="text-[#89958C]">Placing</span>
+          <span className="max-w-[150px] truncate font-medium text-[#E2E9E1]">
+            {selectedPattern.name}
+          </span>
+
+          <div className="h-4 w-px bg-white/[0.12]" />
+
           <Tooltip content="Rotate pattern 90° clockwise" shortcut="R">
             <button
               onClick={onRotatePattern}
-              className="px-1.5 py-0.5 rounded text-[11px] font-mono text-sim-text-secondary hover:text-sim-text-primary hover:bg-sim-hover transition-colors flex items-center space-x-1"
+              className="flex items-center gap-1.5 text-[#A6D96A] transition-colors hover:text-[#D0EBAA]"
             >
-              <RotateCw className="w-3 h-3 text-sim-accent" />
+              <RotateCw size={13} />
               <span>Rotate</span>
             </button>
           </Tooltip>
+
           {onClearSelectedPattern && (
-            <Tooltip content="Cancel stamp mode" shortcut="Esc / D">
+            <Tooltip content="Cancel placement" shortcut="Esc / D">
               <button
                 onClick={onClearSelectedPattern}
-                className="p-0.5 rounded text-sim-text-secondary hover:text-sim-danger hover:bg-sim-danger-muted transition-colors"
+                aria-label="Cancel pattern placement"
+                className="ml-1 text-[#89958C] transition-colors hover:text-[#E17C7C]"
               >
-                <X className="w-3.5 h-3.5" />
+                <X size={14} />
               </button>
             </Tooltip>
           )}
         </div>
       )}
 
-      {/* Main Professional HUD Toolbar */}
-      <div className="flex items-center flex-wrap justify-center gap-1 bg-sim-surface border border-sim-border rounded-lg shadow-hud px-1.5 py-1.5">
-        {/* GROUP 1: PLAYBACK CONTROLS */}
-        <div className="flex items-center space-x-0.5 bg-sim-elevated/60 p-0.5 rounded border border-sim-border-subtle">
+      {/* Main control strip */}
+      <div className="flex max-w-full items-center gap-1 overflow-x-auto border border-[#303830] bg-[#101511] px-2 py-1.5 shadow-2xl shadow-black/35 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        {/* Playback */}
+        <div className="flex shrink-0 items-center">
           <Tooltip content="Step backward 1 generation" shortcut="← or B">
             <button
               onClick={onStepBackward}
               disabled={!canStepBack}
-              className={`p-1.5 rounded text-xs transition-colors ${
-                canStepBack
-                  ? 'text-sim-text-secondary hover:text-sim-text-primary hover:bg-sim-hover active:bg-sim-elevated'
-                  : 'text-sim-text-muted/40 cursor-not-allowed'
-              }`}
+              aria-label="Step backward"
+              className={`${toolButton} disabled:cursor-not-allowed disabled:opacity-30`}
             >
-              <SkipBack className="w-3.5 h-3.5" />
+              <SkipBack size={15} />
             </button>
           </Tooltip>
 
-          {/* Primary Action: Play/Pause */}
           <Tooltip content={isRunning ? 'Pause simulation' : 'Start simulation'} shortcut="Space">
             <button
               onClick={onTogglePlay}
-              className={`flex items-center space-x-1.5 px-3 py-1 rounded text-xs font-semibold tracking-wide transition-all ${
+              aria-label={isRunning ? 'Pause simulation' : 'Start simulation'}
+              className={`mx-1 flex h-8 min-w-[76px] items-center justify-center gap-2 px-3 text-[11px] font-semibold tracking-wide transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#A6D96A] ${
                 isRunning
-                  ? 'bg-sim-accent text-sim-bg hover:opacity-90 shadow-sm'
-                  : 'bg-sim-elevated text-sim-text-primary hover:bg-sim-hover border border-sim-border'
+                  ? 'bg-[#A6D96A] text-[#11170E] hover:bg-[#B9E58B]'
+                  : 'bg-[#252D24] text-[#DCE8D4] hover:bg-[#303B2D]'
               }`}
             >
-              {isRunning ? (
-                <>
-                  <Pause className="w-3.5 h-3.5 fill-current" />
-                  <span className="font-mono text-[11px] tracking-wider uppercase">PAUSE</span>
-                </>
-              ) : (
-                <>
-                  <Play className="w-3.5 h-3.5 fill-current text-sim-accent ml-0.5" />
-                  <span className="font-mono text-[11px] tracking-wider uppercase">RUN</span>
-                </>
-              )}
+              {isRunning
+                ? <Pause size={14} fill="currentColor" />
+                : <Play size={14} fill="currentColor" />}
+              {isRunning ? 'PAUSE' : 'RUN'}
             </button>
           </Tooltip>
 
           <Tooltip content="Step forward 1 generation" shortcut="→ or N">
             <button
               onClick={onStepForward}
-              className="p-1.5 rounded text-xs text-sim-text-secondary hover:text-sim-text-primary hover:bg-sim-hover active:bg-sim-elevated transition-colors"
+              aria-label="Step forward"
+              className={toolButton}
             >
-              <SkipForward className="w-3.5 h-3.5" />
+              <SkipForward size={15} />
             </button>
           </Tooltip>
         </div>
 
-        <div className="h-4 w-px bg-sim-border mx-0.5 hidden sm:block" />
+        <div className={divider} />
 
-        {/* GROUP 2: SPEED CONTROLS */}
-        <div className="flex items-center bg-sim-elevated/60 p-0.5 rounded border border-sim-border-subtle space-x-0.5">
+        {/* Simulation speed */}
+        <div className="flex shrink-0 items-center gap-0.5">
           {SPEED_PRESETS.map((preset) => {
             const isActive = speedMultiplier === preset.value;
+
             return (
               <Tooltip key={preset.value} content={preset.title}>
                 <button
                   onClick={() => onSpeedChange(preset.value)}
-                  className={`px-1.5 py-0.5 rounded text-[11px] font-mono transition-colors ${
+                  aria-label={`Set speed to ${preset.label}`}
+                  aria-pressed={isActive}
+                  className={`flex h-7 min-w-[27px] items-center justify-center px-1.5 font-mono text-[10px] transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#A6D96A] ${
                     isActive
-                      ? 'bg-sim-accent text-sim-bg font-bold shadow-sm'
-                      : 'text-sim-text-secondary hover:text-sim-text-primary hover:bg-sim-hover'
+                      ? 'bg-[#293522] text-[#B9E58B]'
+                      : 'text-[#849087] hover:bg-white/[0.05] hover:text-[#E3E9E3]'
                   }`}
                 >
                   {preset.label}
@@ -169,86 +174,85 @@ export const ControlToolbar: React.FC<ControlToolbarProps> = ({
           })}
         </div>
 
-        <div className="h-4 w-px bg-sim-border mx-0.5 hidden sm:block" />
+        <div className={divider} />
 
-        {/* GROUP 3: TOOLS (Draw, Erase, Pan) */}
-        <div className="flex items-center bg-sim-elevated/60 p-0.5 rounded border border-sim-border-subtle space-x-0.5">
+        {/* Editing tools */}
+        <div className="flex shrink-0 items-center">
           <Tooltip content="Draw cells" shortcut="D">
             <button
               onClick={() => onSelectTool('draw')}
-              className={`p-1.5 rounded transition-colors ${
-                activeTool === 'draw'
-                  ? 'bg-sim-hover text-sim-accent border border-sim-border'
-                  : 'text-sim-text-secondary hover:text-sim-text-primary hover:bg-sim-hover'
+              aria-label="Draw cells"
+              aria-pressed={activeTool === 'draw'}
+              className={`${toolButton} ${
+                activeTool === 'draw' ? 'bg-[#293522] text-[#B9E58B]' : ''
               }`}
             >
-              <Pencil className="w-3.5 h-3.5" />
+              <Pencil size={15} />
             </button>
           </Tooltip>
 
           <Tooltip content="Erase cells" shortcut="E">
             <button
               onClick={() => onSelectTool('erase')}
-              className={`p-1.5 rounded transition-colors ${
-                activeTool === 'erase'
-                  ? 'bg-sim-hover text-sim-accent border border-sim-border'
-                  : 'text-sim-text-secondary hover:text-sim-text-primary hover:bg-sim-hover'
+              aria-label="Erase cells"
+              aria-pressed={activeTool === 'erase'}
+              className={`${toolButton} ${
+                activeTool === 'erase' ? 'bg-[#293522] text-[#B9E58B]' : ''
               }`}
             >
-              <Eraser className="w-3.5 h-3.5" />
+              <Eraser size={15} />
             </button>
           </Tooltip>
 
           <Tooltip content="Pan canvas" shortcut="H / Shift+Drag">
             <button
               onClick={() => onSelectTool('pan')}
-              className={`p-1.5 rounded transition-colors ${
-                activeTool === 'pan'
-                  ? 'bg-sim-hover text-sim-accent border border-sim-border'
-                  : 'text-sim-text-secondary hover:text-sim-text-primary hover:bg-sim-hover'
+              aria-label="Pan canvas"
+              aria-pressed={activeTool === 'pan'}
+              className={`${toolButton} ${
+                activeTool === 'pan' ? 'bg-[#293522] text-[#B9E58B]' : ''
               }`}
             >
-              <Hand className="w-3.5 h-3.5" />
+              <Hand size={15} />
             </button>
           </Tooltip>
         </div>
 
-        <div className="h-4 w-px bg-sim-border mx-0.5 hidden sm:block" />
+        <div className={divider} />
 
-        {/* GROUP 4: PATTERN EXPLORER */}
-        <Tooltip content="Pattern Explorer library" shortcut="P">
+        {/* Pattern library */}
+        <Tooltip content="Open pattern library" shortcut="P">
           <button
             onClick={onOpenPatternCatalog}
-            className="flex items-center space-x-1.5 px-2 py-1 rounded bg-sim-elevated hover:bg-sim-hover text-sim-text-primary border border-sim-border text-xs font-medium transition-colors"
+            className="flex h-8 shrink-0 items-center gap-2 px-2 text-[11px] text-[#C2CCC3] transition-colors hover:bg-white/[0.06] hover:text-white focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#A6D96A]"
           >
-            <Library className="w-3.5 h-3.5 text-sim-secondary" />
-            <span className="text-[11px] font-sans">Patterns</span>
+            <Library size={15} className="text-[#A6D96A]" />
+            <span>Patterns</span>
           </button>
         </Tooltip>
 
-        <div className="h-4 w-px bg-sim-border mx-0.5 hidden sm:block" />
+        <div className={divider} />
 
-        {/* GROUP 5: WORLD ACTIONS (Randomize, Clear) */}
-        <div className="flex items-center space-x-1">
-          <Tooltip content="Random primordial soup" shortcut="S">
-            <button
-              onClick={() => onRandomize()}
-              className="flex items-center space-x-1 px-2 py-1 rounded bg-sim-elevated hover:bg-sim-hover text-sim-text-secondary hover:text-sim-text-primary border border-sim-border text-xs transition-colors"
-            >
-              <Sparkles className="w-3 h-3 text-sim-accent" />
-              <span className="text-[11px] hidden md:inline">Random</span>
-            </button>
-          </Tooltip>
+        {/* World actions */}
+        <Tooltip content="Randomize grid" shortcut="S">
+          <button
+            onClick={() => onRandomize()}
+            className="flex h-8 shrink-0 items-center gap-1.5 px-2 text-[11px] text-[#929D94] transition-colors hover:bg-white/[0.06] hover:text-[#E5EBE5] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#A6D96A]"
+          >
+            <Sparkles size={14} />
+            <span className="hidden sm:inline">Random</span>
+          </button>
+        </Tooltip>
 
-          <Tooltip content="Clear entire grid" shortcut="C">
-            <button
-              onClick={onClear}
-              className="p-1 rounded text-sim-text-muted hover:text-sim-danger hover:bg-sim-danger-muted border border-transparent hover:border-sim-danger/30 transition-colors"
-            >
-              <Trash2 className="w-3.5 h-3.5" />
-            </button>
-          </Tooltip>
-        </div>
+        <Tooltip content="Clear entire grid" shortcut="C">
+          <button
+            onClick={onClear}
+            aria-label="Clear entire grid"
+            className="flex h-8 w-8 shrink-0 items-center justify-center text-[#89958C] transition-colors hover:bg-[#4A2925]/40 hover:text-[#E17C7C] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#E17C7C]"
+          >
+            <Trash2 size={14} />
+          </button>
+        </Tooltip>
       </div>
     </div>
   );

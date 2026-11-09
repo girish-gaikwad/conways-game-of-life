@@ -383,10 +383,39 @@ export const App: React.FC = () => {
     selectedPattern,
   ]);
 
+  // Sync Theme CSS variables to DOM root and body
+  useEffect(() => {
+    const root = document.documentElement;
+    root.style.setProperty('--sim-bg', theme.bg);
+    root.style.setProperty('--sim-surface', theme.panelBg);
+    root.style.setProperty('--sim-elevated', theme.elevatedBg || theme.panelBg);
+    root.style.setProperty('--sim-accent', theme.accentColor);
+    root.style.setProperty('--sim-accent-muted', `${theme.accentColor}26`);
+    root.style.setProperty('--sim-glow', theme.glowColor);
+    root.style.setProperty('--sim-secondary', theme.secondaryColor || theme.cellOldColor);
+    root.style.setProperty('--sim-text-primary', theme.textPrimary || (theme.isLight ? '#0F172A' : '#E8EEE9'));
+    root.style.setProperty('--sim-text-secondary', theme.textSecondary || (theme.isLight ? '#64748B' : '#89958C'));
+    root.style.setProperty('--sim-border', theme.borderColor || (theme.isLight ? '#CBD5E1' : '#28332C'));
+    root.style.setProperty('--sim-border-subtle', theme.borderSubtleColor || (theme.isLight ? '#E2E8F0' : '#1E2822'));
+
+    document.body.style.backgroundColor = theme.bg;
+    document.body.style.color = theme.textPrimary || (theme.isLight ? '#0F172A' : '#E8EEE9');
+  }, [theme]);
+
   return (
     <TooltipProvider>
       <div
-        className="relative w-screen h-screen overflow-hidden flex flex-col font-sans transition-colors duration-300 select-none bg-sim-bg text-sim-text-primary"
+        className="relative w-screen h-screen overflow-hidden flex flex-col font-sans transition-colors duration-200 select-none bg-sim-bg text-sim-text-primary"
+        style={{
+          backgroundColor: theme.bg,
+          color: theme.textPrimary || (theme.isLight ? '#0F172A' : '#E8EEE9'),
+          ['--sim-bg' as string]: theme.bg,
+          ['--sim-surface' as string]: theme.panelBg,
+          ['--sim-elevated' as string]: theme.elevatedBg || theme.panelBg,
+          ['--sim-accent' as string]: theme.accentColor,
+          ['--sim-glow' as string]: theme.glowColor,
+          ['--sim-border' as string]: theme.borderColor || (theme.isLight ? '#CBD5E1' : '#28332C'),
+        }}
       >
         {/* Top Header Bar */}
         <Header

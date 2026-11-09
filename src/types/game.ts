@@ -27,12 +27,18 @@ export interface Theme {
   name: string;
   bg: string;
   panelBg: string;
+  elevatedBg?: string;
   cellColor: string;
   cellNewColor: string;
   cellOldColor: string;
   gridLineColor: string;
   accentColor: string;
+  secondaryColor?: string;
+  borderColor?: string;
+  borderSubtleColor?: string;
   glowColor: string;
+  textPrimary?: string;
+  textSecondary?: string;
   isLight?: boolean;
 }
 

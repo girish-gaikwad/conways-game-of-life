@@ -4,6 +4,20 @@
 
 :root {
   color-scheme: dark;
+  --sim-bg: #0B0F0D;
+  --sim-surface: #121915;
+  --sim-elevated: #19221C;
+  --sim-hover: #1E2922;
+  --sim-accent: #A6D96A;
+  --sim-accent-muted: rgba(166, 217, 106, 0.12);
+  --sim-glow: rgba(166, 217, 106, 0.25);
+  --sim-secondary: #72BFA0;
+  --sim-text-primary: #E8EEE9;
+  --sim-text-secondary: #89958C;
+  --sim-text-muted: #56635A;
+  --sim-border: #28332C;
+  --sim-border-subtle: #1E2822;
+  --sim-border-focus: #3C4D42;
 }
 
 body {
@@ -11,28 +25,21 @@ body {
   padding: 0;
   user-select: none;
   -webkit-user-select: none;
-  background-color: #0B0F0D;
-  color: #E8EEE9;
+  background-color: var(--sim-bg, #0B0F0D);
+  color: var(--sim-text-primary, #E8EEE9);
   font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
   -webkit-font-smoothing: antialiased;
 }
 
 /* Scientific HUD panel styling */
 .hud-panel {
-  background-color: rgba(18, 25, 21, 0.94);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  border: 1px solid #28332C;
+  background-color: var(--sim-surface, #121915);
+  border: 1px solid var(--sim-border, #28332C);
 }
 
 .hud-panel-elevated {
-  background-color: #19221C;
-  border: 1px solid #28332C;
-}
-
-.hud-panel-subtle {
-  background-color: rgba(18, 25, 21, 0.8);
-  border: 1px solid #1E2822;
+  background-color: var(--sim-elevated, #19221C);
+  border: 1px solid var(--sim-border, #28332C);
 }
 
 /* Linear-inspired precision scrollbar */
@@ -42,16 +49,16 @@ body {
 }
 
 ::-webkit-scrollbar-track {
-  background: #0B0F0D;
+  background: var(--sim-bg, #0B0F0D);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #28332C;
+  background: var(--sim-border, #28332C);
   border-radius: 2px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #3C4D42;
+  background: var(--sim-border-focus, #3C4D42);
 }
 
 /* Keyframe for subtle dialog & tooltip fades */
