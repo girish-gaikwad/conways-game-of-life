@@ -52,15 +52,16 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     <Dialog.Root open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm animate-fadeIn" />
-        <Dialog.Content
-          className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-full max-w-lg border rounded-lg shadow-2xl overflow-hidden flex flex-col font-sans animate-fadeIn outline-none transition-colors"
-          style={{
-            backgroundColor: theme.panelBg,
-            borderColor: theme.borderColor,
-            color: theme.textPrimary,
-          }}
-        >
-          {/* Header */}
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none">
+          <Dialog.Content
+            className="pointer-events-auto relative w-full max-w-lg border rounded-lg shadow-2xl overflow-hidden flex flex-col font-sans outline-none transition-colors max-h-[90vh] animate-fadeIn"
+            style={{
+              backgroundColor: theme.panelBg,
+              borderColor: theme.borderColor,
+              color: theme.textPrimary,
+            }}
+          >
+            {/* Header */}
           <div
             className="flex items-center justify-between px-4 py-3 border-b transition-colors"
             style={{
@@ -385,7 +386,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             </Dialog.Close>
           </div>
         </Dialog.Content>
-      </Dialog.Portal>
-    </Dialog.Root>
+      </div>
+    </Dialog.Portal>
+  </Dialog.Root>
   );
 };
