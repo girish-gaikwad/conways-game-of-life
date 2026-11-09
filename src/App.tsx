@@ -10,7 +10,8 @@ import { ShortcutsModal } from './components/ShortcutsModal';
 import { TooltipProvider } from './components/ui/Tooltip';
 import { PATTERNS, rotateGrid } from './data/patterns';
 import { THEMES } from './data/themes';
-import { CellStyle, GameStats, Pattern, Theme, ToolType, ViewportTransform } from './types/game';
+import { RULESETS } from './data/rules';
+import { CellStyle, GameStats, Pattern, RuleSet, Theme, ToolType, ViewportTransform } from './types/game';
 import { soundFX } from './utils/audio';
 
 export const App: React.FC = () => {
@@ -35,6 +36,7 @@ export const App: React.FC = () => {
 
   // Styling & Themes
   const [theme, setTheme] = useState<Theme>(THEMES[0]);
+  const [currentRule, setCurrentRule] = useState<RuleSet>(RULESETS[0]);
   const [cellStyle, setCellStyle] = useState<CellStyle>('heatmap');
   const [showGridLines, setShowGridLines] = useState(true);
   const [soundEnabled, setSoundEnabled] = useState(false);
@@ -112,6 +114,13 @@ export const App: React.FC = () => {
     const nextVal = !toroidal;
     setToroidal(nextVal);
     engine.toroidal = nextVal;
+  };
+
+  // Rule change
+  const handleSelectRule = (rule: RuleSet) => {
+    setCurrentRule(rule);
+    engine.setRule(rule.birth, rule.survival);
+    triggerRender();
   };
 
   // Simulation execution loop with Fast Forward support
@@ -541,6 +550,8 @@ export const App: React.FC = () => {
           onResizeGrid={handleResizeGrid}
           soundEnabled={soundEnabled}
           onToggleSound={handleToggleSound}
+          currentRule={currentRule}
+          onSelectRule={handleSelectRule}
           theme={theme}
         />
 

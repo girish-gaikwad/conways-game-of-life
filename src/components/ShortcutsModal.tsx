@@ -44,49 +44,97 @@ const SHORTCUT_GROUPS = [
   },
 ];
 
-export const ShortcutsModal: React.FC<ShortcutsModalProps> = ({ isOpen, onClose }) => {
+export const ShortcutsModal: React.FC<ShortcutsModalProps> = ({ isOpen, onClose, theme }) => {
   return (
     <Dialog.Root open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm animate-fadeIn" />
-        <Dialog.Content className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-full max-w-md bg-sim-surface border border-sim-border rounded-lg shadow-popover overflow-hidden flex flex-col font-sans animate-fadeIn outline-none">
+        <Dialog.Overlay className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm animate-fadeIn" />
+        <Dialog.Content
+          className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-full max-w-md border rounded-lg shadow-2xl overflow-hidden flex flex-col font-sans animate-fadeIn outline-none transition-colors"
+          style={{
+            backgroundColor: theme.panelBg,
+            borderColor: theme.borderColor,
+            color: theme.textPrimary,
+          }}
+        >
           {/* Header */}
-          <div className="flex items-center justify-between px-4 py-3 border-b border-sim-border bg-sim-surface">
+          <div
+            className="flex items-center justify-between px-4 py-3 border-b transition-colors"
+            style={{
+              backgroundColor: theme.panelBg,
+              borderColor: theme.borderColor,
+            }}
+          >
             <div className="flex items-center space-x-2">
-              <div className="p-1 rounded bg-sim-elevated border border-sim-border text-sim-accent">
+              <div
+                className="p-1 rounded border"
+                style={{
+                  backgroundColor: theme.elevatedBg,
+                  borderColor: theme.borderColor,
+                  color: theme.accentColor,
+                }}
+              >
                 <Keyboard className="w-3.5 h-3.5" />
               </div>
               <div>
-                <Dialog.Title className="text-xs font-semibold tracking-wider font-mono uppercase text-sim-text-primary">
+                <Dialog.Title className="text-xs font-semibold tracking-wider font-mono uppercase">
                   KEYBOARD SHORTCUTS
                 </Dialog.Title>
-                <Dialog.Description className="text-[11px] text-sim-text-secondary">
+                <Dialog.Description
+                  className="text-[11px]"
+                  style={{ color: theme.textSecondary }}
+                >
                   Complete hotkey directory for high-efficiency operation
                 </Dialog.Description>
               </div>
             </div>
             <Dialog.Close asChild>
-              <button className="p-1 rounded text-sim-text-secondary hover:text-sim-text-primary hover:bg-sim-hover border border-transparent hover:border-sim-border transition-colors">
+              <button
+                className="p-1 rounded transition-colors hover:opacity-70"
+                style={{ color: theme.textSecondary }}
+              >
                 <X className="w-4 h-4" />
               </button>
             </Dialog.Close>
           </div>
 
           {/* Content */}
-          <div className="p-4 space-y-4 max-h-[70vh] overflow-y-auto bg-sim-bg text-xs">
+          <div
+            className="p-4 space-y-4 max-h-[70vh] overflow-y-auto text-xs transition-colors"
+            style={{
+              backgroundColor: theme.bg,
+              color: theme.textPrimary,
+            }}
+          >
             {SHORTCUT_GROUPS.map((group) => (
               <div key={group.category} className="space-y-1.5">
-                <div className="text-[10px] font-mono uppercase tracking-wider text-sim-text-muted px-1">
+                <div
+                  className="text-[10px] font-mono uppercase tracking-wider px-1"
+                  style={{ color: theme.textSecondary }}
+                >
                   {group.category}
                 </div>
                 <div className="space-y-1">
                   {group.items.map((item, idx) => (
                     <div
                       key={idx}
-                      className="flex items-center justify-between px-2.5 py-1.5 rounded bg-sim-surface border border-sim-border-subtle"
+                      className="flex items-center justify-between px-2.5 py-1.5 rounded border transition-colors"
+                      style={{
+                        backgroundColor: theme.panelBg,
+                        borderColor: theme.borderSubtleColor || theme.borderColor,
+                      }}
                     >
-                      <span className="text-sim-text-secondary text-[11px]">{item.desc}</span>
-                      <kbd className="px-1.5 py-0.5 rounded bg-sim-elevated text-sim-text-primary font-mono text-[10px] border border-sim-border">
+                      <span className="text-[11px]" style={{ color: theme.textSecondary }}>
+                        {item.desc}
+                      </span>
+                      <kbd
+                        className="px-1.5 py-0.5 rounded font-mono text-[10px] border shadow-sm"
+                        style={{
+                          backgroundColor: theme.elevatedBg,
+                          borderColor: theme.borderColor,
+                          color: theme.textPrimary,
+                        }}
+                      >
                         {item.key}
                       </kbd>
                     </div>
@@ -97,9 +145,22 @@ export const ShortcutsModal: React.FC<ShortcutsModalProps> = ({ isOpen, onClose 
           </div>
 
           {/* Footer */}
-          <div className="px-4 py-3 border-t border-sim-border bg-sim-surface flex justify-end">
+          <div
+            className="px-4 py-3 border-t flex justify-end transition-colors"
+            style={{
+              backgroundColor: theme.panelBg,
+              borderColor: theme.borderColor,
+            }}
+          >
             <Dialog.Close asChild>
-              <button className="px-3 py-1.5 rounded text-xs font-semibold bg-sim-elevated hover:bg-sim-hover text-sim-text-primary border border-sim-border transition-colors font-mono">
+              <button
+                className="px-3 py-1.5 rounded text-xs font-semibold border transition-colors font-mono"
+                style={{
+                  backgroundColor: theme.elevatedBg,
+                  borderColor: theme.borderColor,
+                  color: theme.textPrimary,
+                }}
+              >
                 DISMISS
               </button>
             </Dialog.Close>
