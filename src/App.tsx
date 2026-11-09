@@ -8,7 +8,7 @@ import { SettingsModal } from './components/SettingsModal';
 import { RulesModal } from './components/RulesModal';
 import { ShortcutsModal } from './components/ShortcutsModal';
 import { TooltipProvider, Tooltip } from './components/ui/Tooltip';
-import { ZoomIn, ZoomOut } from 'lucide-react';
+import { ZoomIn, ZoomOut, Maximize2 } from 'lucide-react';
 import { PATTERNS, rotateGrid } from './data/patterns';
 import { THEMES } from './data/themes';
 import { RULESETS } from './data/rules';
@@ -101,6 +101,12 @@ export const App: React.FC = () => {
       engine.randomize(0.18);
     }
     triggerRender();
+
+    // Auto-fit universe to cover screen edge-to-edge
+    const timer = setTimeout(() => {
+      handleFitScreen();
+    }, 60);
+    return () => clearTimeout(timer);
   }, []);
 
   // Handle Resize of Grid Dimensions
@@ -224,27 +230,44 @@ export const App: React.FC = () => {
     triggerRender();
   }, [engine, soundEnabled, triggerRender]);
 
+  // Compute minimum zoom scale required to cover 100% of the canvas without any empty borders
+  const getCoverZoom = useCallback(() => {
+    const canvas = document.querySelector('canvas');
+    if (!canvas) return 1.0;
+    const rect = canvas.getBoundingClientRect();
+    if (rect.width <= 0 || rect.height <= 0) return 1.0;
+    const baseW = engine.width * 16;
+    const baseH = engine.height * 16;
+    return Math.max(rect.width / baseW, rect.height / baseH);
+  }, [engine.width, engine.height]);
+
+  // Fit view so the cellular universe covers the entire screen edge-to-edge
+  const handleFitScreen = useCallback(() => {
+    const coverZoom = getCoverZoom();
+    setTransform({ panX: 0, panY: 0, zoom: Number(coverZoom.toFixed(2)) });
+  }, [getCoverZoom]);
+
   // Reset View / Center
   const handleResetView = useCallback(() => {
-    setTransform({
-      panX: 0,
-      panY: 0,
-      zoom: 1.25,
-    });
-  }, []);
+    handleFitScreen();
+  }, [handleFitScreen]);
 
-  // Zoom Controls
+  // Zoom Controls clamped to cover screen limit
   const handleZoomIn = useCallback(() => {
     setTransform((t) => ({ ...t, zoom: Math.min(6.0, Number((t.zoom * 1.25).toFixed(2))) }));
   }, []);
 
   const handleZoomOut = useCallback(() => {
-    setTransform((t) => ({ ...t, zoom: Math.max(0.2, Number((t.zoom * 0.8).toFixed(2))) }));
-  }, []);
+    const minZoom = getCoverZoom();
+    setTransform((t) => {
+      const target = Math.max(Number(minZoom.toFixed(2)), Number((t.zoom * 0.85).toFixed(2)));
+      return { ...t, zoom: target };
+    });
+  }, [getCoverZoom]);
 
   const handleResetZoom = useCallback(() => {
-    setTransform({ panX: 0, panY: 0, zoom: 1.0 });
-  }, []);
+    handleFitScreen();
+  }, [handleFitScreen]);
 
   // Rotate selected pattern
   const handleRotatePattern = useCallback(() => {
@@ -557,6 +580,17 @@ export const App: React.FC = () => {
                 aria-label="Zoom in"
               >
                 <ZoomIn size={14} />
+              </button>
+            </Tooltip>
+
+            <Tooltip content="Fit & Cover Full Screen">
+              <button
+                onClick={handleFitScreen}
+                className="p-1 rounded hover:opacity-75 transition-opacity"
+                style={{ color: theme.textSecondary }}
+                aria-label="Fit full screen"
+              >
+                <Maximize2 size={13} />
               </button>
             </Tooltip>
           </div>

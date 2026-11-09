@@ -12,7 +12,6 @@ import {
   Minimize,
   ChevronDown,
   Activity,
-  Dna,
 } from 'lucide-react';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { GameStats, Theme } from '../types/game';
@@ -109,11 +108,7 @@ export const Header: React.FC<HeaderProps> = ({
       {/* Brand */}
       <div className="flex min-w-0 shrink-0 items-center gap-2.5">
         <div className="relative flex items-center justify-center">
-          <Dna
-            className="h-5 w-5"
-            style={{ color: colors.accent }}
-            strokeWidth={1.7}
-          />
+          <img src="/favicon.svg" alt="Conway's Game of Life Logo" className="h-7 w-7" />
 
           {isRunning && (
             <span

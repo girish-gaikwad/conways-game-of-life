@@ -533,33 +533,74 @@ export const GridCanvas: React.FC<GridCanvasProps> = ({
   }, []);
 
   // ----------------------------------------------------------------
+  // Dynamic Minimum Zoom & Panning Clamping (Always Covers Screen)
+  // ----------------------------------------------------------------
+
+  const getMinZoom = useCallback(
+    (rect?: DOMRect) => {
+      const canvas = canvasRef.current;
+      if (!canvas) return MIN_ZOOM;
+      const r = rect || canvas.getBoundingClientRect();
+      if (r.width <= 0 || r.height <= 0) return MIN_ZOOM;
+      const baseW = engine.width * BASE_CELL_SIZE;
+      const baseH = engine.height * BASE_CELL_SIZE;
+      // Exact zoom scale where the grid covers the entire canvas (max of width/height ratio)
+      const coverZoom = Math.max(r.width / baseW, r.height / baseH);
+      return Math.min(MAX_ZOOM, Math.max(0.1, Number(coverZoom.toFixed(2))));
+    },
+    [engine.width, engine.height]
+  );
+
+  const clampPan = (
+    panX: number,
+    panY: number,
+    zoom: number,
+    viewW: number,
+    viewH: number
+  ) => {
+    const gW = engine.width * BASE_CELL_SIZE * zoom;
+    const gH = engine.height * BASE_CELL_SIZE * zoom;
+    const maxPanX = Math.max(0, (gW - viewW) / 2);
+    const maxPanY = Math.max(0, (gH - viewH) / 2);
+    return {
+      panX: Math.min(maxPanX, Math.max(-maxPanX, panX)),
+      panY: Math.min(maxPanY, Math.max(-maxPanY, panY)),
+    };
+  };
+
+  // ----------------------------------------------------------------
   // Mouse interactions
   // ----------------------------------------------------------------
 
   const handleWheel = (e: React.WheelEvent<HTMLCanvasElement>) => {
     e.preventDefault();
 
-    const factor = e.deltaY < 0 ? 1.12 : 0.89;
-
-    const newZoom = Math.min(
-      MAX_ZOOM,
-      Math.max(MIN_ZOOM, transform.zoom * factor)
-    );
-
     const canvas = canvasRef.current;
     if (!canvas) return;
 
     const rect = canvas.getBoundingClientRect();
+    const minZoom = getMinZoom(rect);
+
+    const factor = e.deltaY < 0 ? 1.12 : 0.89;
+
+    const newZoom = Math.min(
+      MAX_ZOOM,
+      Math.max(minZoom, transform.zoom * factor)
+    );
 
     const mouseX = e.clientX - rect.left - rect.width / 2;
     const mouseY = e.clientY - rect.top - rect.height / 2;
 
     const scale = newZoom / transform.zoom;
 
+    const rawPanX = mouseX - (mouseX - transform.panX) * scale;
+    const rawPanY = mouseY - (mouseY - transform.panY) * scale;
+    const clamped = clampPan(rawPanX, rawPanY, newZoom, rect.width, rect.height);
+
     onTransformChange({
       zoom: newZoom,
-      panX: mouseX - (mouseX - transform.panX) * scale,
-      panY: mouseY - (mouseY - transform.panY) * scale,
+      panX: clamped.panX,
+      panY: clamped.panY,
     });
   };
 
@@ -645,10 +686,14 @@ export const GridCanvas: React.FC<GridCanvasProps> = ({
       activeTool === 'pan' ||
       e.shiftKey
     ) {
+      const canvas = canvasRef.current;
+      const rect = canvas ? canvas.getBoundingClientRect() : { width: window.innerWidth, height: window.innerHeight };
+      const clamped = clampPan(transform.panX + dx, transform.panY + dy, transform.zoom, rect.width, rect.height);
+
       onTransformChange({
         ...transform,
-        panX: transform.panX + dx,
-        panY: transform.panY + dy,
+        panX: clamped.panX,
+        panY: clamped.panY,
       });
 
       return;
@@ -778,10 +823,14 @@ export const GridCanvas: React.FC<GridCanvasProps> = ({
       const dy = touch.clientY - touchStartRef.current.y;
 
       if (activeTool === 'pan') {
+        const canvas = canvasRef.current;
+        const rect = canvas ? canvas.getBoundingClientRect() : { width: window.innerWidth, height: window.innerHeight };
+        const clamped = clampPan(transform.panX + dx, transform.panY + dy, transform.zoom, rect.width, rect.height);
+
         onTransformChange({
           ...transform,
-          panX: transform.panX + dx,
-          panY: transform.panY + dy,
+          panX: clamped.panX,
+          panY: clamped.panY,
         });
 
         touchStartRef.current.x = touch.clientX;
@@ -826,15 +875,16 @@ export const GridCanvas: React.FC<GridCanvasProps> = ({
       const distance = Math.hypot(dx, dy);
       const ratio = distance / touchStartRef.current.dist;
 
-      const newZoom = Math.min(
-        MAX_ZOOM,
-        Math.max(MIN_ZOOM, transform.zoom * ratio)
-      );
-
       const canvas = canvasRef.current;
 
       if (canvas) {
         const rect = canvas.getBoundingClientRect();
+        const minZoom = getMinZoom(rect);
+
+        const newZoom = Math.min(
+          MAX_ZOOM,
+          Math.max(minZoom, transform.zoom * ratio)
+        );
 
         const centerX =
           (a.clientX + b.clientX) / 2 -
@@ -847,15 +897,14 @@ export const GridCanvas: React.FC<GridCanvasProps> = ({
           rect.height / 2;
 
         const scale = newZoom / transform.zoom;
+        const rawPanX = centerX - (centerX - transform.panX) * scale;
+        const rawPanY = centerY - (centerY - transform.panY) * scale;
+        const clamped = clampPan(rawPanX, rawPanY, newZoom, rect.width, rect.height);
 
         onTransformChange({
           zoom: newZoom,
-          panX:
-            centerX -
-            (centerX - transform.panX) * scale,
-          panY:
-            centerY -
-            (centerY - transform.panY) * scale,
+          panX: clamped.panX,
+          panY: clamped.panY,
         });
       }
 
