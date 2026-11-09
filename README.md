@@ -4,7 +4,7 @@ A clean, high-performance, and professionally designed simulation of John Horton
 
 ---
 
-## ✨ Features
+##  Features
 
 - **🚀 High-Performance Simulation Engine**
   - Double-buffered `Uint8Array` cellular automata grid with toroidal (wrap-around) and bounded boundary options.
@@ -12,29 +12,29 @@ A clean, high-performance, and professionally designed simulation of John Horton
   - Multi-tier playback speeds: `1×` (10 gen/s), `2×` (20 gen/s), `5×` (50 gen/s), `10×` (100 gen/s), `20×` (200 gen/s), and `MAX` (~300+ gen/s batch mode).
   - Time reversal / step-back snapshot history buffer (`←` or `B`).
 
-- **🎨 Themes & Cell Styles**
+- ** Themes & Cell Styles**
   - **Themes**: Bio-Synthetic (Emerald Matrix), Cyan Telemetry (Arctic Quantum), Amber Phosphor (Solar Terminal), Deep Violet, Monochrome CAD, and Architectural Blueprint.
   - **Cell Rendering**: Classic Square, Rounded Squircle, Dot Matrix, and Generational Heatmap.
   - Edge-to-edge full-screen canvas coverage with clamped panning and zoom bounds.
 
-- **📜 Pattern Library & RLE Support**
+- ** Pattern Library & RLE Support**
   - Categorized pattern presets: Spaceships (*Glider, LWSS, MWSS, HWSS*), Guns (*Gosper, Simkin*), Oscillators (*Pulsar, Pentadecathlon, Galaxy*), Methuselahs (*Acorn, R-pentomino, Diehard*), and Still Lifes.
   - 90° pattern rotation (`R`), ghost placement preview, and one-click center placement.
   - Full **RLE (Run Length Encoded)** parser and exporter for sharing cellular patterns with the broader Conway community.
 
-- **🔬 Custom Cellular Automata Rulesets**
+- ** Custom Cellular Automata Rulesets**
   - Standard Conway (`B3/S23`)
   - HighLife (`B36/S23` with Replicators)
   - Seeds (`B2/S` pure chaotic growth)
   - Inkspot (`B3/S012345678`)
   - Day & Night (`B3678/S34678`)
 
-- **🎵 Generative Audio Synthesizer**
+- ** Generative Audio Synthesizer**
   - Pentatonic Web Audio API soundscape reacting to births, deaths, and population activity (toggleable with `M`).
 
 ---
 
-## ⌨️ Controls & Keyboard Shortcuts
+## ⌨ Controls & Keyboard Shortcuts
 
 | Shortcut | Action |
 | --- | --- |
@@ -56,7 +56,7 @@ A clean, high-performance, and professionally designed simulation of John Horton
 
 ---
 
-## 🛠️ Tech Stack
+##  Tech Stack
 
 - **React 19** + **TypeScript**
 - **Vite 6**
@@ -67,7 +67,7 @@ A clean, high-performance, and professionally designed simulation of John Horton
 
 ---
 
-## 🚀 Quick Start
+##  Quick Start
 
 ### Prerequisites
 - Node.js (v18 or higher recommended)
@@ -98,15 +98,15 @@ The optimized bundle will be compiled into the `dist/` folder, ready to deploy t
 
 ---
 
-## 🍴 Forking & Attribution
+##  Forking & Attribution
 
-> **Yeah, you can fork it!** 🚀
+> **Yeah, you can fork it!** 
 > 
 > You are completely welcome to fork this project, experiment with it, and build upon it. If you do fork or showcase it, please remember to **mention and credit the original creator** — it means a lot and supports open-source work!
 
 ---
 
-## 💡 Open to New Features & Ideas
+##  Open to New Features & Ideas
 
 Have an idea for a cool feature, an interesting cellular automata rule, a visual effect, or an optimization? 
 
@@ -116,15 +116,15 @@ Contributions and feature requests are always welcome! Feel free to:
 
 ---
 
-## 👨‍💻 Author & Connect
+##  Author & Connect
 
 **Girish Gaikwad**
 
-- 🌐 **Portfolio / Website**: [girish-gaikwad.tech](https://girish-gaikwad.tech)
-- 🐙 **GitHub**: [@girish-gaikwad](https://github.com/girish-gaikwad)
+-  **Portfolio / Website**: [girish-gaikwad.tech](https://girish-gaikwad.tech)
+-  **GitHub**: [@girish-gaikwad](https://github.com/girish-gaikwad)
 
 ---
 
-## 📄 License
+##  License
 
 This project is open-source. Feel free to use, learn from, and build on it with proper attribution.
