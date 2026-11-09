@@ -1,5 +1,7 @@
 export type ToolType = 'draw' | 'erase' | 'pan' | 'stamp';
 
+export type BrushSize = 1 | 3 | 5;
+
 export type CellStyle = 'square' | 'rounded' | 'dots' | 'heatmap';
 
 export type PatternCategory = 'spaceships' | 'oscillators' | 'guns' | 'methuselahs' | 'still-life';

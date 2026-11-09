@@ -7,7 +7,8 @@ import { PatternLibraryDrawer } from './components/PatternLibraryDrawer';
 import { SettingsModal } from './components/SettingsModal';
 import { RulesModal } from './components/RulesModal';
 import { ShortcutsModal } from './components/ShortcutsModal';
-import { TooltipProvider } from './components/ui/Tooltip';
+import { TooltipProvider, Tooltip } from './components/ui/Tooltip';
+import { ZoomIn, ZoomOut } from 'lucide-react';
 import { PATTERNS, rotateGrid } from './data/patterns';
 import { THEMES } from './data/themes';
 import { RULESETS } from './data/rules';
@@ -232,6 +233,19 @@ export const App: React.FC = () => {
     });
   }, []);
 
+  // Zoom Controls
+  const handleZoomIn = useCallback(() => {
+    setTransform((t) => ({ ...t, zoom: Math.min(6.0, Number((t.zoom * 1.25).toFixed(2))) }));
+  }, []);
+
+  const handleZoomOut = useCallback(() => {
+    setTransform((t) => ({ ...t, zoom: Math.max(0.2, Number((t.zoom * 0.8).toFixed(2))) }));
+  }, []);
+
+  const handleResetZoom = useCallback(() => {
+    setTransform({ panX: 0, panY: 0, zoom: 1.0 });
+  }, []);
+
   // Rotate selected pattern
   const handleRotatePattern = useCallback(() => {
     if (!selectedPattern) return;
@@ -364,6 +378,16 @@ export const App: React.FC = () => {
         case 'Home':
           handleResetView();
           break;
+        case 'Equal':
+        case 'NumpadAdd':
+          e.preventDefault();
+          handleZoomIn();
+          break;
+        case 'Minus':
+        case 'NumpadSubtract':
+          e.preventDefault();
+          handleZoomOut();
+          break;
         case 'Escape':
           if (selectedPattern) {
             setSelectedPattern(null);
@@ -389,6 +413,8 @@ export const App: React.FC = () => {
     handleClear,
     handleToggleSound,
     handleResetView,
+    handleZoomIn,
+    handleZoomOut,
     selectedPattern,
   ]);
 
@@ -491,12 +517,48 @@ export const App: React.FC = () => {
             </div>
           )}
 
-          {/* Viewport Zoom Indicator in bottom left */}
-          <div className="absolute bottom-4 left-4 pointer-events-none z-20 px-2 py-1 rounded bg-sim-surface/90 border border-sim-border text-[10px] font-mono text-sim-text-secondary flex items-center space-x-1.5 shadow-sm">
-            <span>ZOOM</span>
-            <span className="text-sim-text-primary font-semibold">
-              {Math.round(transform.zoom * 100)}%
-            </span>
+          {/* Interactive Zoom Control Cluster in bottom left */}
+          <div
+            className="absolute bottom-4 left-4 z-20 flex items-center space-x-1 p-1 rounded-lg border shadow-lg transition-colors select-none"
+            style={{
+              backgroundColor: theme.panelBg,
+              borderColor: theme.borderColor,
+            }}
+          >
+            <Tooltip content="Zoom Out (-)">
+              <button
+                onClick={handleZoomOut}
+                className="p-1 rounded hover:opacity-75 transition-opacity"
+                style={{ color: theme.textSecondary }}
+                aria-label="Zoom out"
+              >
+                <ZoomOut size={14} />
+              </button>
+            </Tooltip>
+
+            <Tooltip content="Reset Zoom (Home)">
+              <button
+                onClick={handleResetZoom}
+                className="px-2 py-0.5 rounded font-mono text-[11px] font-semibold transition-opacity hover:opacity-80"
+                style={{
+                  backgroundColor: theme.elevatedBg,
+                  color: theme.textPrimary,
+                }}
+              >
+                {Math.round(transform.zoom * 100)}%
+              </button>
+            </Tooltip>
+
+            <Tooltip content="Zoom In (+)">
+              <button
+                onClick={handleZoomIn}
+                className="p-1 rounded hover:opacity-75 transition-opacity"
+                style={{ color: theme.textSecondary }}
+                aria-label="Zoom in"
+              >
+                <ZoomIn size={14} />
+              </button>
+            </Tooltip>
           </div>
         </main>
 
