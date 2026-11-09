@@ -811,7 +811,8 @@ export const GridCanvas: React.FC<GridCanvasProps> = ({
   const handleTouchMove = (
     e: React.TouchEvent<HTMLCanvasElement>
   ) => {
-    e.preventDefault();
+    // Note: Touch default scrolling and gestures are disabled natively via CSS touch-action: none.
+    // We intentionally omit e.preventDefault() here to prevent Chrome passive event listener warnings.
 
     if (
       e.touches.length === 1 &&
