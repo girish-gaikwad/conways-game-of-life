@@ -64,7 +64,7 @@ export const GridCanvas: React.FC<GridCanvasProps> = ({
     [transform, engine.width, engine.height]
   );
 
-  // Line drawing interpolation to prevent gaps when moving mouse quickly
+  // Line drawing interpolation
   const drawLine = useCallback(
     (x0: number, y0: number, x1: number, y1: number, state: number) => {
       const dx = Math.abs(x1 - x0);
@@ -103,7 +103,7 @@ export const GridCanvas: React.FC<GridCanvasProps> = ({
     [engine, onCellModified]
   );
 
-  // Render loop
+  // High-performance requestAnimationFrame loop
   useEffect(() => {
     let animId: number;
 
@@ -118,7 +118,7 @@ export const GridCanvas: React.FC<GridCanvasProps> = ({
       const height = canvas.height;
       const dpr = window.devicePixelRatio || 1;
 
-      // Clear Canvas Background
+      // 1. Dark Background
       ctx.fillStyle = theme.bg;
       ctx.fillRect(0, 0, width, height);
 
@@ -134,28 +134,22 @@ export const GridCanvas: React.FC<GridCanvasProps> = ({
       const originX = cssWidth / 2 + transform.panX - (engine.width * effectiveCellSize) / 2;
       const originY = cssHeight / 2 + transform.panY - (engine.height * effectiveCellSize) / 2;
 
-      // Viewport culling bounds (in grid coords)
+      // Culling visible bounds
       const minX = Math.max(0, Math.floor(-originX / effectiveCellSize));
       const maxX = Math.min(engine.width - 1, Math.ceil((cssWidth - originX) / effectiveCellSize));
       const minY = Math.max(0, Math.floor(-originY / effectiveCellSize));
       const maxY = Math.min(engine.height - 1, Math.ceil((cssHeight - originY) / effectiveCellSize));
 
-      // 1. Draw Grid Boundary
       const gridPxWidth = engine.width * effectiveCellSize;
       const gridPxHeight = engine.height * effectiveCellSize;
 
-      ctx.strokeStyle = theme.isLight ? 'rgba(0,0,0,0.15)' : 'rgba(255,255,255,0.12)';
-      ctx.lineWidth = 1;
-      ctx.strokeRect(originX, originY, gridPxWidth, gridPxHeight);
-
-      // 2. Draw Grid Lines if zoom is sufficiently large
-      if (showGridLines && effectiveCellSize >= 6) {
+      // 2. Grid guidelines with contrast fade
+      if (showGridLines && effectiveCellSize >= 5) {
         ctx.beginPath();
         ctx.strokeStyle = theme.gridLineColor;
         ctx.lineWidth = 0.5;
 
-        // Fading opacity if zoom is tiny
-        const lineAlpha = Math.min(1, (effectiveCellSize - 6) / 10);
+        const lineAlpha = Math.min(1, (effectiveCellSize - 5) / 10);
         ctx.globalAlpha = lineAlpha;
 
         for (let x = minX; x <= maxX + 1; x++) {
@@ -173,27 +167,30 @@ export const GridCanvas: React.FC<GridCanvasProps> = ({
         ctx.globalAlpha = 1.0;
       }
 
-      // 3. Draw Living Cells
-      const cellPadding = effectiveCellSize > 5 ? 1 : 0;
-      const cellInnerSize = Math.max(1, effectiveCellSize - cellPadding * 2);
+      // 3. Grid Perimeter Border
+      ctx.strokeStyle = '#28332C';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(originX, originY, gridPxWidth, gridPxHeight);
+
+      // 4. Living Cells
+      const cellGap = effectiveCellSize >= 4 ? 1 : 0;
+      const cellInnerSize = Math.max(1, effectiveCellSize - cellGap);
       const isHeatmap = cellStyle === 'heatmap';
 
       for (let y = minY; y <= maxY; y++) {
         const rowIdx = y * engine.width;
-        const cellY = originY + y * effectiveCellSize + cellPadding;
+        const cellY = originY + y * effectiveCellSize;
 
         for (let x = minX; x <= maxX; x++) {
           const idx = rowIdx + x;
-          const isAlive = engine.currentGrid[idx] === 1;
-
-          if (isAlive) {
-            const cellX = originX + x * effectiveCellSize + cellPadding;
+          if (engine.currentGrid[idx] === 1) {
+            const cellX = originX + x * effectiveCellSize;
             const age = engine.ageGrid[idx];
 
             if (isHeatmap) {
               if (age <= 1) {
                 ctx.fillStyle = theme.cellNewColor;
-              } else if (age < 8) {
+              } else if (age < 12) {
                 ctx.fillStyle = theme.cellColor;
               } else {
                 ctx.fillStyle = theme.cellOldColor;
@@ -203,14 +200,14 @@ export const GridCanvas: React.FC<GridCanvasProps> = ({
             }
 
             if (cellStyle === 'rounded' && cellInnerSize >= 6) {
-              const r = Math.min(3, cellInnerSize / 3);
+              const radius = Math.min(2, cellInnerSize / 4);
               ctx.beginPath();
-              ctx.roundRect(cellX, cellY, cellInnerSize, cellInnerSize, r);
+              ctx.roundRect(cellX, cellY, cellInnerSize, cellInnerSize, radius);
               ctx.fill();
             } else if (cellStyle === 'dots' && cellInnerSize >= 4) {
-              const radius = cellInnerSize / 2;
+              const r = cellInnerSize / 2;
               ctx.beginPath();
-              ctx.arc(cellX + radius, cellY + radius, radius, 0, Math.PI * 2);
+              ctx.arc(cellX + r, cellY + r, r, 0, Math.PI * 2);
               ctx.fill();
             } else {
               ctx.fillRect(cellX, cellY, cellInnerSize, cellInnerSize);
@@ -219,7 +216,7 @@ export const GridCanvas: React.FC<GridCanvasProps> = ({
         }
       }
 
-      // 4. Ghost Stamp Preview when activeTool === 'stamp'
+      // 5. Ghost Pattern Preview for Stamping
       if (activeTool === 'stamp' && selectedPattern && lastMousePosRef.current) {
         const { x: hx, y: hy, inBounds } = screenToGrid(
           lastMousePosRef.current.x,
@@ -233,20 +230,28 @@ export const GridCanvas: React.FC<GridCanvasProps> = ({
           const ox = Math.floor(hx - pCols / 2);
           const oy = Math.floor(hy - pRows / 2);
 
-          ctx.fillStyle = theme.isLight ? 'rgba(37, 99, 235, 0.45)' : 'rgba(52, 211, 153, 0.45)';
-          ctx.strokeStyle = theme.accentColor;
-          ctx.lineWidth = 1;
+          // Pattern bounding box outline
+          const bPx = originX + ox * effectiveCellSize;
+          const bPy = originY + oy * effectiveCellSize;
+          const bW = pCols * effectiveCellSize;
+          const bH = pRows * effectiveCellSize;
 
+          ctx.strokeStyle = 'rgba(166, 217, 106, 0.4)';
+          ctx.lineWidth = 1;
+          ctx.setLineDash([4, 4]);
+          ctx.strokeRect(bPx, bPy, bW, bH);
+          ctx.setLineDash([]);
+
+          ctx.fillStyle = 'rgba(166, 217, 106, 0.4)';
           for (let r = 0; r < pRows; r++) {
             for (let c = 0; c < pCols; c++) {
               if (pGrid[r][c] === 1) {
                 const gx = ox + c;
                 const gy = oy + r;
                 if (gx >= 0 && gx < engine.width && gy >= 0 && gy < engine.height) {
-                  const px = originX + gx * effectiveCellSize + cellPadding;
-                  const py = originY + gy * effectiveCellSize + cellPadding;
+                  const px = originX + gx * effectiveCellSize;
+                  const py = originY + gy * effectiveCellSize;
                   ctx.fillRect(px, py, cellInnerSize, cellInnerSize);
-                  ctx.strokeRect(px, py, cellInnerSize, cellInnerSize);
                 }
               }
             }
@@ -271,7 +276,7 @@ export const GridCanvas: React.FC<GridCanvasProps> = ({
     screenToGrid,
   ]);
 
-  // Handle Resize and High-DPI Canvas scaling
+  // Window Resize & High DPI
   useEffect(() => {
     const handleResize = () => {
       const canvas = canvasRef.current;
@@ -292,10 +297,9 @@ export const GridCanvas: React.FC<GridCanvasProps> = ({
   // Mouse wheel zoom
   const handleWheel = (e: React.WheelEvent<HTMLCanvasElement>) => {
     e.preventDefault();
-    const zoomFactor = e.deltaY < 0 ? 1.15 : 0.87;
+    const zoomFactor = e.deltaY < 0 ? 1.12 : 0.89;
     const newZoom = Math.min(Math.max(0.2, transform.zoom * zoomFactor), 6.0);
 
-    // Zoom towards cursor
     const canvas = canvasRef.current;
     if (!canvas) return;
     const rect = canvas.getBoundingClientRect();
@@ -344,7 +348,6 @@ export const GridCanvas: React.FC<GridCanvasProps> = ({
       soundFX.playCellTone(x + y, false);
       onCellModified();
     } else {
-      // Draw mode: toggle cell or match initial action
       const currentlyAlive = engine.getCell(x, y) === 1;
       drawActionRef.current = currentlyAlive ? 0 : 1;
       engine.setCell(x, y, drawActionRef.current);
@@ -371,7 +374,6 @@ export const GridCanvas: React.FC<GridCanvasProps> = ({
     const dx = e.clientX - lastMousePosRef.current.x;
     const dy = e.clientY - lastMousePosRef.current.y;
 
-    // Pan mode
     if (mouseButtonRef.current === 1 || activeTool === 'pan' || e.shiftKey) {
       onTransformChange({
         ...transform,
@@ -381,7 +383,6 @@ export const GridCanvas: React.FC<GridCanvasProps> = ({
       return;
     }
 
-    // Draw / Erase continuous line
     if (activeTool === 'stamp') return;
 
     if (inBounds) {
@@ -393,7 +394,6 @@ export const GridCanvas: React.FC<GridCanvasProps> = ({
     }
   };
 
-  // Mouse Up / Leave
   const handleMouseUp = () => {
     isMouseDownRef.current = false;
     lastDrawnCellRef.current = null;
@@ -405,7 +405,7 @@ export const GridCanvas: React.FC<GridCanvasProps> = ({
     setHoverCoord(null);
   };
 
-  // Touch Support for mobile and touch screens
+  // Touch handlers
   const touchStartRef = useRef<{ x: number; y: number; dist: number } | null>(null);
 
   const handleTouchStart = (e: React.TouchEvent<HTMLCanvasElement>) => {
@@ -435,7 +435,6 @@ export const GridCanvas: React.FC<GridCanvasProps> = ({
         lastDrawnCellRef.current = { x, y };
       }
     } else if (e.touches.length === 2) {
-      // Pinch to zoom
       const dx = e.touches[0].clientX - e.touches[1].clientX;
       const dy = e.touches[0].clientY - e.touches[1].clientY;
       const dist = Math.sqrt(dx * dx + dy * dy);

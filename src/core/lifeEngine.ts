@@ -3,6 +3,8 @@ export interface LifeEngineConfig {
   height: number;
   toroidal?: boolean;
   maxHistory?: number;
+  birth?: number[];
+  survival?: number[];
 }
 
 export class LifeEngine {
@@ -11,6 +13,9 @@ export class LifeEngine {
   public size: number;
   public toroidal: boolean;
 
+  public birthMask: number = 0; // bitmask for fast neighbor lookup
+  public survivalMask: number = 0;
+
   public currentGrid: Uint8Array;
   private nextGrid: Uint8Array;
   public ageGrid: Uint16Array;
@@ -18,6 +23,8 @@ export class LifeEngine {
   public generation: number = 0;
   public aliveCount: number = 0;
   public peakPopulation: number = 0;
+  public lastBirths: number = 0;
+  public lastDeaths: number = 0;
 
   private history: Uint8Array[] = [];
   private historyAges: Uint16Array[] = [];
@@ -30,9 +37,21 @@ export class LifeEngine {
     this.toroidal = config.toroidal ?? true;
     this.maxHistory = config.maxHistory ?? 60;
 
+    this.setRule(config.birth ?? [3], config.survival ?? [2, 3]);
+
     this.currentGrid = new Uint8Array(this.size);
     this.nextGrid = new Uint8Array(this.size);
     this.ageGrid = new Uint16Array(this.size);
+  }
+
+  public setRule(birth: number[], survival: number[]) {
+    let bMask = 0;
+    for (const b of birth) bMask |= 1 << b;
+    this.birthMask = bMask;
+
+    let sMask = 0;
+    for (const s of survival) sMask |= 1 << s;
+    this.survivalMask = sMask;
   }
 
   public resize(newWidth: number, newHeight: number) {
@@ -155,6 +174,8 @@ export class LifeEngine {
     const isToroidal = this.toroidal;
 
     let newAlive = 0;
+    let stepBirths = 0;
+    let stepDeaths = 0;
 
     for (let y = 0; y < h; y++) {
       const yPrev = isToroidal ? (y === 0 ? h - 1 : y - 1) : y - 1;
@@ -187,22 +208,25 @@ export class LifeEngine {
 
         const idx = rowIdx + x;
         const cell = curr[idx];
+        const nMask = 1 << neighbors;
 
-        // Conway's B3/S23
+        // Custom or Conway rules via bitmasks
         if (cell === 1) {
-          if (neighbors === 2 || neighbors === 3) {
+          if ((this.survivalMask & nMask) !== 0) {
             next[idx] = 1;
             ages[idx] = ages[idx] < 65535 ? ages[idx] + 1 : 65535;
             newAlive++;
           } else {
             next[idx] = 0;
             ages[idx] = 0;
+            stepDeaths++;
           }
         } else {
-          if (neighbors === 3) {
+          if ((this.birthMask & nMask) !== 0) {
             next[idx] = 1;
             ages[idx] = 1; // newborn
             newAlive++;
+            stepBirths++;
           } else {
             next[idx] = 0;
             ages[idx] = 0;
@@ -214,6 +238,8 @@ export class LifeEngine {
     // Swap buffers
     this.currentGrid.set(this.nextGrid);
     this.aliveCount = newAlive;
+    this.lastBirths = stepBirths;
+    this.lastDeaths = stepDeaths;
     this.generation++;
     if (newAlive > this.peakPopulation) {
       this.peakPopulation = newAlive;

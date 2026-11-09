@@ -7,6 +7,7 @@ import { PatternLibraryDrawer } from './components/PatternLibraryDrawer';
 import { SettingsModal } from './components/SettingsModal';
 import { RulesModal } from './components/RulesModal';
 import { ShortcutsModal } from './components/ShortcutsModal';
+import { TooltipProvider } from './components/ui/Tooltip';
 import { PATTERNS, rotateGrid } from './data/patterns';
 import { THEMES } from './data/themes';
 import { CellStyle, GameStats, Pattern, Theme, ToolType, ViewportTransform } from './types/game';
@@ -37,6 +38,7 @@ export const App: React.FC = () => {
   const [cellStyle, setCellStyle] = useState<CellStyle>('heatmap');
   const [showGridLines, setShowGridLines] = useState(true);
   const [soundEnabled, setSoundEnabled] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
 
   // Modals
   const [isPatternCatalogOpen, setIsPatternCatalogOpen] = useState(false);
@@ -49,10 +51,14 @@ export const App: React.FC = () => {
     generation: 0,
     aliveCount: 0,
     peakPopulation: 0,
+    births: 0,
+    deaths: 0,
+    density: 0,
     fps: 0,
     speedMultiplier: 1,
     cursorX: null,
     cursorY: null,
+    historyPopulations: [],
   });
   const [hoverCoord, setHoverCoord] = useState<{ x: number; y: number } | null>(null);
   const [canStepBack, setCanStepBack] = useState(false);
@@ -61,17 +67,29 @@ export const App: React.FC = () => {
   const [, setTick] = useState(0);
   const triggerRender = useCallback(() => {
     setTick((t) => (t + 1) % 1000000);
-    setStats((prev) => ({
-      ...prev,
-      generation: engine.generation,
-      aliveCount: engine.aliveCount,
-      peakPopulation: engine.peakPopulation,
-      speedMultiplier,
-    }));
+    const totalCells = engine.width * engine.height;
+    const currentDensity = totalCells > 0 ? (engine.aliveCount / totalCells) * 100 : 0;
+
+    setStats((prev) => {
+      const newHistory = [...prev.historyPopulations, engine.aliveCount];
+      if (newHistory.length > 50) newHistory.shift();
+
+      return {
+        ...prev,
+        generation: engine.generation,
+        aliveCount: engine.aliveCount,
+        peakPopulation: engine.peakPopulation,
+        births: engine.lastBirths,
+        deaths: engine.lastDeaths,
+        density: currentDensity,
+        speedMultiplier,
+        historyPopulations: newHistory,
+      };
+    });
     setCanStepBack(engine.canStepBack());
   }, [engine, speedMultiplier]);
 
-  // Initial Seed on mount: Spawn Gosper Glider Gun or interesting ecosystem
+  // Initial Seed on mount: Spawn Gosper Glider Gun or primordial soup
   useEffect(() => {
     const gosper = PATTERNS.find((p) => p.id === 'gosper-gun');
     if (gosper) {
@@ -121,7 +139,6 @@ export const App: React.FC = () => {
       lastTime = currentTime;
       accumulatedTime += delta;
 
-      // FPS tracking
       frameCount++;
       if (currentTime - lastFpsTime >= 500) {
         const measuredFps = Math.round((frameCount * 1000) / (currentTime - lastFpsTime));
@@ -130,9 +147,8 @@ export const App: React.FC = () => {
         lastFpsTime = currentTime;
       }
 
-      // Execute steps
       let stepsExecuted = 0;
-      const maxBatch = speedMultiplier >= 20 ? 10 : 4; // protect from death spiral
+      const maxBatch = speedMultiplier >= 20 ? 8 : 4;
 
       while (accumulatedTime >= msPerStep && stepsExecuted < maxBatch) {
         engine.step();
@@ -141,7 +157,7 @@ export const App: React.FC = () => {
       }
 
       if (accumulatedTime > msPerStep * 2) {
-        accumulatedTime = 0; // reset accumulated drift
+        accumulatedTime = 0;
       }
 
       if (stepsExecuted > 0) {
@@ -214,6 +230,46 @@ export const App: React.FC = () => {
     setSelectedPattern({ ...selectedPattern, grid: rotated });
   }, [selectedPattern]);
 
+  // Export Canvas Snapshot as PNG
+  const handleExportSnapshot = useCallback(() => {
+    const canvas = document.querySelector('canvas');
+    if (!canvas) return;
+
+    try {
+      const dataUrl = canvas.toDataURL('image/png');
+      const a = document.createElement('a');
+      a.href = dataUrl;
+      a.download = `conway-simulation-gen-${engine.generation}.png`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    } catch (err) {
+      console.error('Failed to export canvas snapshot', err);
+    }
+  }, [engine.generation]);
+
+  // Fullscreen Toggle
+  const handleToggleFullscreen = useCallback(() => {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen().catch(() => {});
+      setIsFullscreen(true);
+    } else {
+      if (document.exitFullscreen) {
+        document.exitFullscreen().catch(() => {});
+        setIsFullscreen(false);
+      }
+    }
+  }, []);
+
+  // Listen for fullscreen change
+  useEffect(() => {
+    const handleFSChange = () => {
+      setIsFullscreen(Boolean(document.fullscreenElement));
+    };
+    document.addEventListener('fullscreenchange', handleFSChange);
+    return () => document.removeEventListener('fullscreenchange', handleFSChange);
+  }, []);
+
   // Pattern Selection from Catalog
   const handleSelectPattern = useCallback(
     (pattern: Pattern, mode: 'stamp' | 'center') => {
@@ -236,7 +292,6 @@ export const App: React.FC = () => {
   // Keyboard Shortcuts Handler
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Don't intercept if user is typing in an input
       if (['INPUT', 'TEXTAREA'].includes((e.target as HTMLElement)?.tagName)) {
         return;
       }
@@ -297,6 +352,15 @@ export const App: React.FC = () => {
         case 'KeyG':
           setShowGridLines((g) => !g);
           break;
+        case 'Home':
+          handleResetView();
+          break;
+        case 'Escape':
+          if (selectedPattern) {
+            setSelectedPattern(null);
+            setActiveTool('draw');
+          }
+          break;
         case 'Slash':
           if (e.shiftKey) {
             e.preventDefault();
@@ -315,143 +379,157 @@ export const App: React.FC = () => {
     handleRandomize,
     handleClear,
     handleToggleSound,
+    handleResetView,
+    selectedPattern,
   ]);
 
   return (
-    <div
-      className="relative w-screen h-screen overflow-hidden flex flex-col font-sans transition-colors duration-300 select-none"
-      style={{ backgroundColor: theme.bg }}
-    >
-      {/* Top Header Bar */}
-      <Header
-        stats={stats}
-        onResetView={handleResetView}
-        soundEnabled={soundEnabled}
-        onToggleSound={handleToggleSound}
-        currentTheme={theme}
-        onSelectTheme={setTheme}
-        onOpenRules={() => setIsRulesOpen(true)}
-        onOpenShortcuts={() => setIsShortcutsOpen(true)}
-        onOpenSettings={() => setIsSettingsOpen(true)}
-        gridWidth={gridSize.w}
-        gridHeight={gridSize.h}
-      />
-
-      {/* Main Interactive Canvas Area */}
-      <main className="relative flex-1 w-full h-full overflow-hidden">
-        <GridCanvas
-          engine={engine}
-          theme={theme}
-          cellStyle={cellStyle}
-          showGridLines={showGridLines}
-          activeTool={activeTool}
-          selectedPattern={selectedPattern}
-          transform={transform}
-          onTransformChange={setTransform}
-          onCellModified={triggerRender}
-          onPatternPlaced={() => {
-            // Keep tool or let user place multiple stamps
-          }}
-          hoverCoord={hoverCoord}
-          setHoverCoord={setHoverCoord}
+    <TooltipProvider>
+      <div
+        className="relative w-screen h-screen overflow-hidden flex flex-col font-sans transition-colors duration-300 select-none bg-sim-bg text-sim-text-primary"
+      >
+        {/* Top Header Bar */}
+        <Header
+          stats={stats}
+          onResetView={handleResetView}
+          soundEnabled={soundEnabled}
+          onToggleSound={handleToggleSound}
+          currentTheme={theme}
+          onSelectTheme={setTheme}
+          onOpenRules={() => setIsRulesOpen(true)}
+          onOpenShortcuts={() => setIsShortcutsOpen(true)}
+          onOpenSettings={() => setIsSettingsOpen(true)}
+          gridWidth={gridSize.w}
+          gridHeight={gridSize.h}
+          onExportSnapshot={handleExportSnapshot}
+          isFullscreen={isFullscreen}
+          onToggleFullscreen={handleToggleFullscreen}
+          isRunning={isRunning}
         />
 
-        {/* Hover Coordinate HUD in bottom right */}
-        {hoverCoord && (
-          <div className="absolute bottom-5 right-5 pointer-events-none z-20 px-3 py-1.5 rounded-xl glass-panel-subtle text-[11px] font-mono text-white/60 border border-white/5 flex items-center space-x-2">
-            <span>
-              X: <strong className="text-white">{hoverCoord.x}</strong>
-            </span>
-            <span className="text-white/20">|</span>
-            <span>
-              Y: <strong className="text-white">{hoverCoord.y}</strong>
-            </span>
-            <span className="text-white/20">|</span>
-            <span>
-              State:{' '}
-              <strong
-                style={{
-                  color:
-                    engine.getCell(hoverCoord.x, hoverCoord.y) === 1
-                      ? theme.cellColor
-                      : 'rgba(255,255,255,0.4)',
-                }}
-              >
-                {engine.getCell(hoverCoord.x, hoverCoord.y) === 1 ? 'ALIVE' : 'DEAD'}
-              </strong>
+        {/* Main Interactive Canvas Area */}
+        <main className="relative flex-1 w-full h-full overflow-hidden">
+          <GridCanvas
+            engine={engine}
+            theme={theme}
+            cellStyle={cellStyle}
+            showGridLines={showGridLines}
+            activeTool={activeTool}
+            selectedPattern={selectedPattern}
+            transform={transform}
+            onTransformChange={setTransform}
+            onCellModified={triggerRender}
+            onPatternPlaced={() => {
+              // Placed pattern
+            }}
+            hoverCoord={hoverCoord}
+            setHoverCoord={setHoverCoord}
+          />
+
+          {/* Precision Hover Coordinate HUD in bottom right */}
+          {hoverCoord && (
+            <div className="absolute bottom-4 right-4 pointer-events-none z-20 px-2 py-1 rounded bg-sim-surface/90 border border-sim-border text-[10px] font-mono text-sim-text-secondary flex items-center space-x-2 shadow-sm">
+              <span>
+                X: <strong className="text-sim-text-primary">{hoverCoord.x}</strong>
+              </span>
+              <span className="text-sim-border">|</span>
+              <span>
+                Y: <strong className="text-sim-text-primary">{hoverCoord.y}</strong>
+              </span>
+              <span className="text-sim-border">|</span>
+              <span>
+                STATUS:{' '}
+                <strong
+                  style={{
+                    color:
+                      engine.getCell(hoverCoord.x, hoverCoord.y) === 1
+                        ? theme.cellColor
+                        : '#89958C',
+                  }}
+                >
+                  {engine.getCell(hoverCoord.x, hoverCoord.y) === 1 ? 'ALIVE' : 'DEAD'}
+                </strong>
+              </span>
+            </div>
+          )}
+
+          {/* Viewport Zoom Indicator in bottom left */}
+          <div className="absolute bottom-4 left-4 pointer-events-none z-20 px-2 py-1 rounded bg-sim-surface/90 border border-sim-border text-[10px] font-mono text-sim-text-secondary flex items-center space-x-1.5 shadow-sm">
+            <span>ZOOM</span>
+            <span className="text-sim-text-primary font-semibold">
+              {Math.round(transform.zoom * 100)}%
             </span>
           </div>
-        )}
+        </main>
 
-        {/* Zoom Level Indicator in bottom left */}
-        <div className="absolute bottom-5 left-5 pointer-events-none z-20 px-3 py-1.5 rounded-xl glass-panel-subtle text-[11px] font-mono text-white/50 border border-white/5 flex items-center space-x-2">
-          <span>ZOOM:</span>
-          <span className="text-white font-semibold">{Math.round(transform.zoom * 100)}%</span>
-        </div>
-      </main>
+        {/* Floating Bottom Professional Control Bar */}
+        <ControlToolbar
+          isRunning={isRunning}
+          onTogglePlay={() => setIsRunning((r) => !r)}
+          onStepForward={handleStepForward}
+          onStepBackward={handleStepBackward}
+          canStepBack={canStepBack}
+          speedMultiplier={speedMultiplier}
+          onSpeedChange={setSpeedMultiplier}
+          activeTool={activeTool}
+          onSelectTool={(tool) => {
+            setActiveTool(tool);
+            if (tool !== 'stamp') setSelectedPattern(null);
+          }}
+          selectedPattern={selectedPattern}
+          onClearSelectedPattern={() => {
+            setSelectedPattern(null);
+            setActiveTool('draw');
+          }}
+          onOpenPatternCatalog={() => setIsPatternCatalogOpen(true)}
+          onRotatePattern={handleRotatePattern}
+          onRandomize={handleRandomize}
+          onClear={handleClear}
+          theme={theme}
+        />
 
-      {/* Floating Bottom Control Bar */}
-      <ControlToolbar
-        isRunning={isRunning}
-        onTogglePlay={() => setIsRunning((r) => !r)}
-        onStepForward={handleStepForward}
-        onStepBackward={handleStepBackward}
-        canStepBack={canStepBack}
-        speedMultiplier={speedMultiplier}
-        onSpeedChange={setSpeedMultiplier}
-        activeTool={activeTool}
-        onSelectTool={(tool) => {
-          setActiveTool(tool);
-          if (tool !== 'stamp') setSelectedPattern(null);
-        }}
-        selectedPattern={selectedPattern}
-        onOpenPatternCatalog={() => setIsPatternCatalogOpen(true)}
-        onRotatePattern={handleRotatePattern}
-        onRandomize={handleRandomize}
-        onClear={handleClear}
-        theme={theme}
-      />
+        {/* Pattern Catalog Drawer */}
+        <PatternLibraryDrawer
+          isOpen={isPatternCatalogOpen}
+          onClose={() => setIsPatternCatalogOpen(false)}
+          onSelectPattern={handleSelectPattern}
+          selectedPattern={selectedPattern}
+          theme={theme}
+        />
 
-      {/* Pattern Catalog Drawer */}
-      <PatternLibraryDrawer
-        isOpen={isPatternCatalogOpen}
-        onClose={() => setIsPatternCatalogOpen(false)}
-        onSelectPattern={handleSelectPattern}
-        theme={theme}
-      />
+        {/* Simulation Settings Modal */}
+        <SettingsModal
+          isOpen={isSettingsOpen}
+          onClose={() => setIsSettingsOpen(false)}
+          cellStyle={cellStyle}
+          onSelectCellStyle={setCellStyle}
+          toroidal={toroidal}
+          onToggleToroidal={handleToggleToroidal}
+          showGridLines={showGridLines}
+          onToggleGridLines={() => setShowGridLines((g) => !g)}
+          gridWidth={gridSize.w}
+          gridHeight={gridSize.h}
+          onResizeGrid={handleResizeGrid}
+          soundEnabled={soundEnabled}
+          onToggleSound={handleToggleSound}
+          theme={theme}
+        />
 
-      {/* Simulation Settings Modal */}
-      <SettingsModal
-        isOpen={isSettingsOpen}
-        onClose={() => setIsSettingsOpen(false)}
-        cellStyle={cellStyle}
-        onSelectCellStyle={setCellStyle}
-        toroidal={toroidal}
-        onToggleToroidal={handleToggleToroidal}
-        showGridLines={showGridLines}
-        onToggleGridLines={() => setShowGridLines((g) => !g)}
-        gridWidth={gridSize.w}
-        gridHeight={gridSize.h}
-        onResizeGrid={handleResizeGrid}
-        soundEnabled={soundEnabled}
-        onToggleSound={handleToggleSound}
-        theme={theme}
-      />
+        {/* Rules of Life Educational Modal */}
+        <RulesModal
+          isOpen={isRulesOpen}
+          onClose={() => setIsRulesOpen(false)}
+          theme={theme}
+        />
 
-      {/* Rules of Life Educational Modal */}
-      <RulesModal
-        isOpen={isRulesOpen}
-        onClose={() => setIsRulesOpen(false)}
-        theme={theme}
-      />
-
-      {/* Keyboard Shortcuts Reference Modal */}
-      <ShortcutsModal
-        isOpen={isShortcutsOpen}
-        onClose={() => setIsShortcutsOpen(false)}
-        theme={theme}
-      />
-    </div>
+        {/* Keyboard Shortcuts Reference Modal */}
+        <ShortcutsModal
+          isOpen={isShortcutsOpen}
+          onClose={() => setIsShortcutsOpen(false)}
+          theme={theme}
+        />
+      </div>
+    </TooltipProvider>
   );
 };
 

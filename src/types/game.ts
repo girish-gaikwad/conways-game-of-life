@@ -4,6 +4,14 @@ export type CellStyle = 'square' | 'rounded' | 'dots' | 'heatmap';
 
 export type PatternCategory = 'spaceships' | 'oscillators' | 'guns' | 'methuselahs' | 'still-life';
 
+export interface RuleSet {
+  id: string;
+  name: string;
+  birth: number[];
+  survival: number[];
+  description: string;
+}
+
 export interface Pattern {
   id: string;
   name: string;
@@ -32,10 +40,14 @@ export interface GameStats {
   generation: number;
   aliveCount: number;
   peakPopulation: number;
+  births: number;
+  deaths: number;
+  density: number;
   fps: number;
   speedMultiplier: number;
   cursorX: number | null;
   cursorY: number | null;
+  historyPopulations: number[];
 }
 
 export interface ViewportTransform {
@@ -43,3 +55,4 @@ export interface ViewportTransform {
   panY: number;
   zoom: number;
 }
+

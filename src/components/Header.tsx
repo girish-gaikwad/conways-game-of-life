@@ -1,7 +1,19 @@
 import React from 'react';
-import { Volume2, VolumeX, HelpCircle, Keyboard, Settings, Compass } from 'lucide-react';
+import {
+  Volume2,
+  VolumeX,
+  HelpCircle,
+  Keyboard,
+  Settings,
+  Compass,
+  Camera,
+  Maximize,
+  Minimize,
+} from 'lucide-react';
+import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { GameStats, Theme } from '../types/game';
 import { THEMES } from '../data/themes';
+import { Tooltip } from './ui/Tooltip';
 
 interface HeaderProps {
   stats: GameStats;
@@ -15,6 +27,10 @@ interface HeaderProps {
   onOpenSettings: () => void;
   gridWidth: number;
   gridHeight: number;
+  onExportSnapshot: () => void;
+  isFullscreen: boolean;
+  onToggleFullscreen: () => void;
+  isRunning: boolean;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -29,157 +45,203 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenSettings,
   gridWidth,
   gridHeight,
+  onExportSnapshot,
+  isFullscreen,
+  onToggleFullscreen,
+  isRunning,
 }) => {
   return (
-    <header className="relative z-30 flex items-center justify-between px-4 py-2.5 glass-panel border-b border-white/10 select-none">
-      {/* Brand & Status */}
+    <header className="relative z-30 flex items-center justify-between px-3 sm:px-4 py-2 bg-sim-surface border-b border-sim-border select-none">
+      {/* Brand & Simulation Spec */}
       <div className="flex items-center space-x-3">
         <div className="flex items-center space-x-2">
+          {/* Running State LED Indicator */}
           <div
-            className="w-8 h-8 rounded-lg flex items-center justify-center font-mono font-bold text-sm shadow-md transition-all duration-300"
-            style={{
-              backgroundColor: currentTheme.accentColor,
-              color: currentTheme.isLight ? '#ffffff' : '#0a0f14',
-              boxShadow: `0 0 16px ${currentTheme.glowColor}`,
-            }}
-          >
-            ●
-          </div>
-          <div>
-            <h1 className="text-sm font-semibold tracking-wide flex items-center gap-1.5 leading-tight text-white">
-              <span>CONWAY</span>
-              <span className="text-[10px] tracking-widest px-1.5 py-0.5 rounded bg-white/10 text-white/70 font-mono">
-                LAB
-              </span>
-            </h1>
-            <p className="text-[11px] text-white/50 font-mono tracking-tight">
-              {gridWidth}×{gridHeight} CELLULAR AUTOMATON
-            </p>
+            className={`w-2 h-2 rounded-full transition-colors ${
+              isRunning ? 'bg-sim-accent animate-pulse' : 'bg-sim-text-muted/60'
+            }`}
+          />
+          <div className="flex items-baseline space-x-1.5">
+            <span className="text-xs font-semibold tracking-wider font-mono uppercase text-sim-text-primary">
+              CONWAY
+            </span>
+            <span className="text-[10px] font-mono tracking-widest text-sim-accent">
+              SIMULATOR
+            </span>
+            <span className="text-[10px] font-mono text-sim-text-muted hidden sm:inline">
+              // {gridWidth}×{gridHeight}
+            </span>
           </div>
         </div>
 
-        {/* Live HUD Badges */}
-        <div className="hidden md:flex items-center space-x-2 ml-4 pl-4 border-l border-white/10">
-          <div className="px-2.5 py-1 rounded-md bg-white/[0.04] border border-white/5 flex items-center space-x-2 text-xs font-mono">
-            <span className="text-white/40">GEN</span>
-            <span className="font-semibold text-white tabular-nums tracking-wide">
+        {/* SCIENTIFIC HUD METRICS DISPLAY */}
+        <div className="hidden lg:flex items-center space-x-2 ml-3 pl-3 border-l border-sim-border text-xs font-mono">
+          {/* Current Generation */}
+          <div className="flex items-center space-x-1 px-2 py-0.5 rounded bg-sim-elevated border border-sim-border">
+            <span className="text-[10px] text-sim-text-muted">GEN</span>
+            <span className="font-semibold text-sim-text-primary tabular-nums">
               {stats.generation.toLocaleString()}
             </span>
           </div>
 
-          <div className="px-2.5 py-1 rounded-md bg-white/[0.04] border border-white/5 flex items-center space-x-2 text-xs font-mono">
-            <span className="text-white/40">ALIVE</span>
-            <span
-              className="font-semibold tabular-nums tracking-wide"
-              style={{ color: currentTheme.cellColor }}
-            >
+          {/* Live Population */}
+          <div className="flex items-center space-x-1 px-2 py-0.5 rounded bg-sim-elevated border border-sim-border">
+            <span className="text-[10px] text-sim-text-muted">LIVE</span>
+            <span className="font-semibold text-sim-accent tabular-nums">
               {stats.aliveCount.toLocaleString()}
             </span>
           </div>
 
-          <div className="hidden lg:flex px-2.5 py-1 rounded-md bg-white/[0.04] border border-white/5 items-center space-x-2 text-xs font-mono">
-            <span className="text-white/40">PEAK</span>
-            <span className="text-white/80 tabular-nums">
+          {/* Births & Deaths dynamics */}
+          <div
+            className="hidden xl:flex items-center space-x-1 px-2 py-0.5 rounded bg-sim-elevated border border-sim-border text-[11px]"
+            title="Last tick Births (+) / Deaths (-)"
+          >
+            <span className="text-sim-accent tabular-nums">+{stats.births}</span>
+            <span className="text-sim-text-muted">/</span>
+            <span className="text-sim-danger tabular-nums">-{stats.deaths}</span>
+          </div>
+
+          {/* Population Density */}
+          <div className="hidden xl:flex items-center space-x-1 px-2 py-0.5 rounded bg-sim-elevated border border-sim-border">
+            <span className="text-[10px] text-sim-text-muted">DENSITY</span>
+            <span className="text-sim-text-primary tabular-nums font-medium">
+              {stats.density.toFixed(1)}%
+            </span>
+          </div>
+
+          {/* Peak Population */}
+          <div className="hidden 2xl:flex items-center space-x-1 px-2 py-0.5 rounded bg-sim-elevated border border-sim-border">
+            <span className="text-[10px] text-sim-text-muted">PEAK</span>
+            <span className="text-sim-text-secondary tabular-nums">
               {stats.peakPopulation.toLocaleString()}
             </span>
           </div>
 
-          <div className="hidden xl:flex px-2 py-1 rounded-md bg-white/[0.04] border border-white/5 items-center space-x-1.5 text-xs font-mono text-white/50">
+          {/* FPS Counter */}
+          <div className="hidden 2xl:flex items-center space-x-1 px-1.5 py-0.5 text-[10px] text-sim-text-muted">
             <span>FPS</span>
-            <span className="tabular-nums text-white/80">{stats.fps}</span>
+            <span className="tabular-nums text-sim-text-secondary">{stats.fps}</span>
           </div>
         </div>
       </div>
 
-      {/* Right Controls */}
-      <div className="flex items-center space-x-1.5 sm:space-x-2">
-        {/* Quick Theme Selector Dropdown */}
-        <div className="relative group">
+      {/* TOP RIGHT TOOLBAR ACTIONS */}
+      <div className="flex items-center space-x-1 sm:space-x-1.5">
+        {/* Radix Dropdown Theme Selector */}
+        <DropdownMenu.Root>
+          <DropdownMenu.Trigger asChild>
+            <button className="flex items-center space-x-1.5 px-2 py-1 rounded bg-sim-elevated hover:bg-sim-hover border border-sim-border text-xs text-sim-text-secondary hover:text-sim-text-primary transition-colors">
+              <div
+                className="w-2.5 h-2.5 rounded-full border border-sim-border shadow-sm"
+                style={{ backgroundColor: currentTheme.cellColor }}
+              />
+              <span className="hidden md:inline font-sans text-[11px]">{currentTheme.name}</span>
+            </button>
+          </DropdownMenu.Trigger>
+          <DropdownMenu.Portal>
+            <DropdownMenu.Content
+              align="end"
+              sideOffset={4}
+              className="z-50 min-w-[180px] bg-sim-surface border border-sim-border rounded-md p-1 shadow-popover text-xs font-sans animate-fadeIn"
+            >
+              <div className="px-2 py-1 text-[10px] font-mono uppercase tracking-wider text-sim-text-muted">
+                Visual Palettes
+              </div>
+              {THEMES.map((t) => (
+                <DropdownMenu.Item
+                  key={t.id}
+                  onClick={() => onSelectTheme(t)}
+                  className={`flex items-center space-x-2 px-2 py-1.5 rounded cursor-pointer transition-colors outline-none ${
+                    currentTheme.id === t.id
+                      ? 'bg-sim-elevated text-sim-accent font-medium'
+                      : 'text-sim-text-secondary hover:bg-sim-hover hover:text-sim-text-primary'
+                  }`}
+                >
+                  <div
+                    className="w-2.5 h-2.5 rounded-full border border-sim-border"
+                    style={{ backgroundColor: t.cellColor }}
+                  />
+                  <span>{t.name}</span>
+                </DropdownMenu.Item>
+              ))}
+            </DropdownMenu.Content>
+          </DropdownMenu.Portal>
+        </DropdownMenu.Root>
+
+        {/* Reset View / Center */}
+        <Tooltip content="Center viewport (Home)" shortcut="Home">
           <button
-            title="Theme Selection"
-            className="flex items-center space-x-1.5 px-2.5 py-1.5 rounded-lg bg-white/[0.06] hover:bg-white/[0.12] border border-white/10 text-xs font-medium text-white/80 hover:text-white transition-colors"
+            onClick={onResetView}
+            className="p-1.5 rounded bg-sim-elevated hover:bg-sim-hover border border-sim-border text-sim-text-secondary hover:text-sim-text-primary transition-colors"
           >
-            <div
-              className="w-3 h-3 rounded-full border border-white/30"
-              style={{ backgroundColor: currentTheme.cellColor }}
-            />
-            <span className="hidden sm:inline">{currentTheme.name}</span>
+            <Compass className="w-3.5 h-3.5" />
           </button>
+        </Tooltip>
 
-          <div className="absolute right-0 top-full mt-1.5 w-48 py-1 rounded-xl glass-panel shadow-2xl border border-white/10 hidden group-hover:block transition-all z-50">
-            <div className="px-3 py-1.5 text-[10px] uppercase font-mono tracking-wider text-white/40 border-b border-white/5">
-              Color Themes
-            </div>
-            {THEMES.map((t) => (
-              <button
-                key={t.id}
-                onClick={() => onSelectTheme(t)}
-                className={`w-full flex items-center space-x-2.5 px-3 py-2 text-xs text-left transition-colors ${
-                  currentTheme.id === t.id
-                    ? 'bg-white/15 text-white font-medium'
-                    : 'text-white/70 hover:bg-white/10 hover:text-white'
-                }`}
-              >
-                <div
-                  className="w-3.5 h-3.5 rounded-full border border-white/20 shadow-sm"
-                  style={{ backgroundColor: t.cellColor }}
-                />
-                <span>{t.name}</span>
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Center / Reset View */}
-        <button
-          onClick={onResetView}
-          title="Reset View / Center (Home)"
-          className="p-1.5 sm:px-2 sm:py-1.5 rounded-lg bg-white/[0.06] hover:bg-white/[0.12] border border-white/10 text-xs font-medium text-white/70 hover:text-white transition-colors flex items-center space-x-1"
-        >
-          <Compass className="w-4 h-4" />
-          <span className="hidden md:inline">Center</span>
-        </button>
+        {/* Capture Snapshot */}
+        <Tooltip content="Export canvas as high-res PNG">
+          <button
+            onClick={onExportSnapshot}
+            className="p-1.5 rounded bg-sim-elevated hover:bg-sim-hover border border-sim-border text-sim-text-secondary hover:text-sim-text-primary transition-colors"
+          >
+            <Camera className="w-3.5 h-3.5" />
+          </button>
+        </Tooltip>
 
         {/* Audio Toggle */}
-        <button
-          onClick={onToggleSound}
-          title={soundEnabled ? 'Mute generative audio (M)' : 'Enable generative audio (M)'}
-          className={`p-1.5 sm:px-2 sm:py-1.5 rounded-lg border text-xs font-medium transition-colors flex items-center space-x-1 ${
-            soundEnabled
-              ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/30'
-              : 'bg-white/[0.06] border-white/10 text-white/50 hover:text-white/80'
-          }`}
-        >
-          {soundEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
-          <span className="hidden lg:inline">{soundEnabled ? 'Audio On' : 'Muted'}</span>
-        </button>
+        <Tooltip content={soundEnabled ? 'Mute audio' : 'Enable ambient audio'} shortcut="M">
+          <button
+            onClick={onToggleSound}
+            className={`p-1.5 rounded border text-xs transition-colors ${
+              soundEnabled
+                ? 'bg-sim-accent-muted border-sim-accent/40 text-sim-accent'
+                : 'bg-sim-elevated border-sim-border text-sim-text-muted hover:text-sim-text-primary hover:bg-sim-hover'
+            }`}
+          >
+            {soundEnabled ? <Volume2 className="w-3.5 h-3.5" /> : <VolumeX className="w-3.5 h-3.5" />}
+          </button>
+        </Tooltip>
 
-        {/* Shortcuts Guide */}
-        <button
-          onClick={onOpenShortcuts}
-          title="Keyboard Shortcuts (?)"
-          className="p-1.5 rounded-lg bg-white/[0.06] hover:bg-white/[0.12] border border-white/10 text-white/70 hover:text-white transition-colors"
-        >
-          <Keyboard className="w-4 h-4" />
-        </button>
+        {/* Fullscreen Toggle */}
+        <Tooltip content={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}>
+          <button
+            onClick={onToggleFullscreen}
+            className="p-1.5 rounded bg-sim-elevated hover:bg-sim-hover border border-sim-border text-sim-text-secondary hover:text-sim-text-primary transition-colors hidden sm:block"
+          >
+            {isFullscreen ? <Minimize className="w-3.5 h-3.5" /> : <Maximize className="w-3.5 h-3.5" />}
+          </button>
+        </Tooltip>
 
-        {/* Game Rules Modal */}
-        <button
-          onClick={onOpenRules}
-          title="Conway's Rules & Guide"
-          className="p-1.5 rounded-lg bg-white/[0.06] hover:bg-white/[0.12] border border-white/10 text-white/70 hover:text-white transition-colors"
-        >
-          <HelpCircle className="w-4 h-4" />
-        </button>
+        {/* Shortcuts Reference */}
+        <Tooltip content="Keyboard shortcuts reference" shortcut="?">
+          <button
+            onClick={onOpenShortcuts}
+            className="p-1.5 rounded bg-sim-elevated hover:bg-sim-hover border border-sim-border text-sim-text-secondary hover:text-sim-text-primary transition-colors"
+          >
+            <Keyboard className="w-3.5 h-3.5" />
+          </button>
+        </Tooltip>
 
-        {/* Engine Settings */}
-        <button
-          onClick={onOpenSettings}
-          title="Settings & Display Modes"
-          className="p-1.5 rounded-lg bg-white/[0.06] hover:bg-white/[0.12] border border-white/10 text-white/70 hover:text-white transition-colors"
-        >
-          <Settings className="w-4 h-4" />
-        </button>
+        {/* Guide / Rules */}
+        <Tooltip content="Conway's rules & background">
+          <button
+            onClick={onOpenRules}
+            className="p-1.5 rounded bg-sim-elevated hover:bg-sim-hover border border-sim-border text-sim-text-secondary hover:text-sim-text-primary transition-colors"
+          >
+            <HelpCircle className="w-3.5 h-3.5" />
+          </button>
+        </Tooltip>
+
+        {/* Settings Dialog */}
+        <Tooltip content="Simulation settings">
+          <button
+            onClick={onOpenSettings}
+            className="p-1.5 rounded bg-sim-elevated hover:bg-sim-hover border border-sim-border text-sim-text-secondary hover:text-sim-text-primary transition-colors"
+          >
+            <Settings className="w-3.5 h-3.5" />
+          </button>
+        </Tooltip>
       </div>
     </header>
   );

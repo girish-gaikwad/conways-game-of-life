@@ -1,5 +1,6 @@
 import React from 'react';
 import { X, Keyboard } from 'lucide-react';
+import * as Dialog from '@radix-ui/react-dialog';
 import { Theme } from '../types/game';
 
 interface ShortcutsModalProps {
@@ -8,75 +9,103 @@ interface ShortcutsModalProps {
   theme: Theme;
 }
 
-const SHORTCUTS = [
-  { key: 'Space', desc: 'Play / Pause simulation' },
-  { key: '→ or N', desc: 'Step forward 1 generation' },
-  { key: '← or B', desc: 'Step backward (Undo 1 gen)' },
-  { key: '1, 2, 5, 0', desc: 'Set speed (1×, 2×, 5×, 20×)' },
-  { key: 'D', desc: 'Draw tool (Pencil)' },
-  { key: 'E', desc: 'Eraser tool' },
-  { key: 'H', desc: 'Pan / Hand tool' },
-  { key: 'P', desc: 'Open Pattern catalog' },
-  { key: 'R', desc: 'Rotate selected pattern 90°' },
-  { key: 'S', desc: 'Random soup of life' },
-  { key: 'C', desc: 'Clear entire universe' },
-  { key: 'M', desc: 'Toggle generative sound effects' },
-  { key: 'G', desc: 'Toggle grid matrix guidelines' },
-  { key: 'Scroll Wheel', desc: 'Zoom in / Zoom out' },
-  { key: 'Shift + Drag', desc: 'Pan canvas at any time' },
+const SHORTCUT_GROUPS = [
+  {
+    category: 'Simulation Playback',
+    items: [
+      { key: 'Space', desc: 'Toggle Run / Pause' },
+      { key: '→ or N', desc: 'Step forward 1 generation' },
+      { key: '← or B', desc: 'Step backward 1 generation (Undo)' },
+      { key: '1, 2, 5, 0', desc: 'Speed multiplier (1×, 2×, 5×, 20×)' },
+    ],
+  },
+  {
+    category: 'Tools & Viewport',
+    items: [
+      { key: 'D', desc: 'Draw tool (toggle cells)' },
+      { key: 'E', desc: 'Erase tool' },
+      { key: 'H', desc: 'Hand / Pan tool' },
+      { key: 'Shift + Drag', desc: 'Pan canvas at any time' },
+      { key: 'Scroll Wheel', desc: 'Zoom in / Zoom out at cursor' },
+      { key: 'Home', desc: 'Reset viewport to center' },
+    ],
+  },
+  {
+    category: 'Patterns & World',
+    items: [
+      { key: 'P', desc: 'Open Pattern Explorer' },
+      { key: 'R', desc: 'Rotate selected pattern 90°' },
+      { key: 'S', desc: 'Primordial random soup' },
+      { key: 'C', desc: 'Clear entire universe' },
+      { key: 'M', desc: 'Toggle ambient audio' },
+      { key: 'G', desc: 'Toggle grid guidelines' },
+      { key: '?', desc: 'Keyboard shortcuts guide' },
+    ],
+  },
 ];
 
-export const ShortcutsModal: React.FC<ShortcutsModalProps> = ({ isOpen, onClose, theme }) => {
-  if (!isOpen) return null;
-
+export const ShortcutsModal: React.FC<ShortcutsModalProps> = ({ isOpen, onClose }) => {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn">
-      <div className="relative w-full max-w-md glass-panel rounded-2xl border border-white/10 shadow-2xl overflow-hidden flex flex-col">
-        {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-white/10">
-          <div className="flex items-center space-x-2.5">
-            <div className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-white/80">
-              <Keyboard className="w-4 h-4" />
+    <Dialog.Root open={isOpen} onOpenChange={(open) => !open && onClose()}>
+      <Dialog.Portal>
+        <Dialog.Overlay className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm animate-fadeIn" />
+        <Dialog.Content className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-full max-w-md bg-sim-surface border border-sim-border rounded-lg shadow-popover overflow-hidden flex flex-col font-sans animate-fadeIn outline-none">
+          {/* Header */}
+          <div className="flex items-center justify-between px-4 py-3 border-b border-sim-border bg-sim-surface">
+            <div className="flex items-center space-x-2">
+              <div className="p-1 rounded bg-sim-elevated border border-sim-border text-sim-accent">
+                <Keyboard className="w-3.5 h-3.5" />
+              </div>
+              <div>
+                <Dialog.Title className="text-xs font-semibold tracking-wider font-mono uppercase text-sim-text-primary">
+                  KEYBOARD SHORTCUTS
+                </Dialog.Title>
+                <Dialog.Description className="text-[11px] text-sim-text-secondary">
+                  Complete hotkey directory for high-efficiency operation
+                </Dialog.Description>
+              </div>
             </div>
-            <div>
-              <h2 className="text-base font-semibold text-white">Keyboard Shortcuts</h2>
-              <p className="text-xs text-white/50">Master Conway's Game of Life like a pro</p>
-            </div>
+            <Dialog.Close asChild>
+              <button className="p-1 rounded text-sim-text-secondary hover:text-sim-text-primary hover:bg-sim-hover border border-transparent hover:border-sim-border transition-colors">
+                <X className="w-4 h-4" />
+              </button>
+            </Dialog.Close>
           </div>
-          <button
-            onClick={onClose}
-            className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-white/60 hover:text-white transition-colors"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
 
-        {/* Content */}
-        <div className="p-5 max-h-[70vh] overflow-y-auto space-y-2">
-          {SHORTCUTS.map((item, idx) => (
-            <div
-              key={idx}
-              className="flex items-center justify-between py-1.5 px-3 rounded-lg bg-white/[0.02] border border-white/5 text-xs"
-            >
-              <span className="text-white/70">{item.desc}</span>
-              <kbd className="px-2 py-0.5 rounded bg-white/10 text-white/90 font-mono text-[11px] border border-white/10 shadow-sm">
-                {item.key}
-              </kbd>
-            </div>
-          ))}
-        </div>
+          {/* Content */}
+          <div className="p-4 space-y-4 max-h-[70vh] overflow-y-auto bg-sim-bg text-xs">
+            {SHORTCUT_GROUPS.map((group) => (
+              <div key={group.category} className="space-y-1.5">
+                <div className="text-[10px] font-mono uppercase tracking-wider text-sim-text-muted px-1">
+                  {group.category}
+                </div>
+                <div className="space-y-1">
+                  {group.items.map((item, idx) => (
+                    <div
+                      key={idx}
+                      className="flex items-center justify-between px-2.5 py-1.5 rounded bg-sim-surface border border-sim-border-subtle"
+                    >
+                      <span className="text-sim-text-secondary text-[11px]">{item.desc}</span>
+                      <kbd className="px-1.5 py-0.5 rounded bg-sim-elevated text-sim-text-primary font-mono text-[10px] border border-sim-border">
+                        {item.key}
+                      </kbd>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
 
-        {/* Footer */}
-        <div className="p-4 border-t border-white/10 flex justify-end">
-          <button
-            onClick={onClose}
-            className="px-4 py-2 rounded-xl text-xs font-semibold text-white transition-all shadow-md"
-            style={{ backgroundColor: theme.accentColor }}
-          >
-            Close
-          </button>
-        </div>
-      </div>
-    </div>
+          {/* Footer */}
+          <div className="px-4 py-3 border-t border-sim-border bg-sim-surface flex justify-end">
+            <Dialog.Close asChild>
+              <button className="px-3 py-1.5 rounded text-xs font-semibold bg-sim-elevated hover:bg-sim-hover text-sim-text-primary border border-sim-border transition-colors font-mono">
+                DISMISS
+              </button>
+            </Dialog.Close>
+          </div>
+        </Dialog.Content>
+      </Dialog.Portal>
+    </Dialog.Root>
   );
 };

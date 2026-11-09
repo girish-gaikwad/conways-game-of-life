@@ -9,11 +9,12 @@ import {
   Hand,
   Sparkles,
   Trash2,
-  FastForward,
   Library,
   RotateCw,
+  X,
 } from 'lucide-react';
 import { Pattern, Theme, ToolType } from '../types/game';
+import { Tooltip } from './ui/Tooltip';
 
 interface ControlToolbarProps {
   isRunning: boolean;
@@ -26,6 +27,7 @@ interface ControlToolbarProps {
   activeTool: ToolType;
   onSelectTool: (tool: ToolType) => void;
   selectedPattern: Pattern | null;
+  onClearSelectedPattern?: () => void;
   onOpenPatternCatalog: () => void;
   onRotatePattern: () => void;
   onRandomize: (density?: number) => void;
@@ -34,12 +36,12 @@ interface ControlToolbarProps {
 }
 
 const SPEED_PRESETS = [
-  { label: '1×', value: 1, title: 'Standard (10 gen/s)' },
-  { label: '2×', value: 2, title: '2× Speed (20 gen/s)' },
-  { label: '5×', value: 5, title: '5× Fast Forward (50 gen/s)' },
-  { label: '10×', value: 10, title: '10× Warp Speed (100 gen/s)' },
-  { label: '20×', value: 20, title: '20× Hyper Speed (200 gen/s)' },
-  { label: 'MAX', value: 60, title: 'Max Frame Rate (~60+ gen/s)' },
+  { label: '1×', value: 1, title: '10 gen/s' },
+  { label: '2×', value: 2, title: '20 gen/s' },
+  { label: '5×', value: 5, title: '50 gen/s' },
+  { label: '10×', value: 10, title: '100 gen/s' },
+  { label: '20×', value: 20, title: '200 gen/s' },
+  { label: 'MAX', value: 60, title: 'Uncapped (~300+ gen/s)' },
 ];
 
 export const ControlToolbar: React.FC<ControlToolbarProps> = ({
@@ -53,178 +55,200 @@ export const ControlToolbar: React.FC<ControlToolbarProps> = ({
   activeTool,
   onSelectTool,
   selectedPattern,
+  onClearSelectedPattern,
   onOpenPatternCatalog,
   onRotatePattern,
   onRandomize,
   onClear,
-  theme,
 }) => {
   return (
-    <div className="fixed bottom-5 left-1/2 -translate-x-1/2 z-30 max-w-[96vw] flex flex-col items-center gap-2 select-none">
-      {/* Pattern Stamp Quick Ribbon if stamp mode is selected */}
+    <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-30 flex flex-col items-center gap-1.5 select-none max-w-[98vw]">
+      {/* Pattern Stamping Mode Context Ribbon */}
       {selectedPattern && (
-        <div className="flex items-center space-x-2 px-3 py-1.5 rounded-full glass-panel shadow-lg border border-white/10 text-xs text-white/90 animate-fadeIn">
-          <span className="text-white/50">Stamping:</span>
-          <span className="font-semibold text-white">{selectedPattern.name}</span>
-          <button
-            onClick={onRotatePattern}
-            title="Rotate Pattern 90° (R)"
-            className="p-1 rounded-md bg-white/10 hover:bg-white/20 text-white transition-colors flex items-center space-x-1"
-          >
-            <RotateCw className="w-3.5 h-3.5" />
-            <span className="text-[10px] font-mono">Rotate (R)</span>
-          </button>
+        <div className="flex items-center space-x-2 px-2.5 py-1 rounded bg-sim-elevated border border-sim-accent/40 shadow-hud text-xs text-sim-text-primary animate-fadeIn">
+          <div className="flex items-center space-x-1.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-sim-accent animate-pulse" />
+            <span className="text-sim-text-secondary text-[11px] font-mono">STAMP:</span>
+            <span className="font-medium text-sim-text-primary text-xs">{selectedPattern.name}</span>
+          </div>
+          <div className="h-3 w-px bg-sim-border" />
+          <Tooltip content="Rotate pattern 90° clockwise" shortcut="R">
+            <button
+              onClick={onRotatePattern}
+              className="px-1.5 py-0.5 rounded text-[11px] font-mono text-sim-text-secondary hover:text-sim-text-primary hover:bg-sim-hover transition-colors flex items-center space-x-1"
+            >
+              <RotateCw className="w-3 h-3 text-sim-accent" />
+              <span>Rotate</span>
+            </button>
+          </Tooltip>
+          {onClearSelectedPattern && (
+            <Tooltip content="Cancel stamp mode" shortcut="Esc / D">
+              <button
+                onClick={onClearSelectedPattern}
+                className="p-0.5 rounded text-sim-text-secondary hover:text-sim-danger hover:bg-sim-danger-muted transition-colors"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </Tooltip>
+          )}
         </div>
       )}
 
-      {/* Main Glass HUD Bar */}
-      <div className="flex items-center flex-wrap justify-center gap-1 sm:gap-2 px-3 py-2 sm:px-4 sm:py-2.5 rounded-2xl glass-panel shadow-hud border border-white/15">
-        {/* Step Back (Undo Gen) */}
-        <button
-          onClick={onStepBackward}
-          disabled={!canStepBack}
-          title="Step Backward (B / ←)"
-          className={`p-2 rounded-xl transition-all ${
-            canStepBack
-              ? 'bg-white/[0.06] hover:bg-white/[0.14] text-white/80 hover:text-white'
-              : 'text-white/20 cursor-not-allowed'
-          }`}
-        >
-          <SkipBack className="w-4 h-4" />
-        </button>
+      {/* Main Professional HUD Toolbar */}
+      <div className="flex items-center flex-wrap justify-center gap-1 bg-sim-surface border border-sim-border rounded-lg shadow-hud px-1.5 py-1.5">
+        {/* GROUP 1: PLAYBACK CONTROLS */}
+        <div className="flex items-center space-x-0.5 bg-sim-elevated/60 p-0.5 rounded border border-sim-border-subtle">
+          <Tooltip content="Step backward 1 generation" shortcut="← or B">
+            <button
+              onClick={onStepBackward}
+              disabled={!canStepBack}
+              className={`p-1.5 rounded text-xs transition-colors ${
+                canStepBack
+                  ? 'text-sim-text-secondary hover:text-sim-text-primary hover:bg-sim-hover active:bg-sim-elevated'
+                  : 'text-sim-text-muted/40 cursor-not-allowed'
+              }`}
+            >
+              <SkipBack className="w-3.5 h-3.5" />
+            </button>
+          </Tooltip>
 
-        {/* Primary Play / Pause Button */}
-        <button
-          onClick={onTogglePlay}
-          title={isRunning ? 'Pause Simulation (Space)' : 'Start Simulation (Space)'}
-          className="relative px-5 py-2.5 rounded-xl font-medium text-xs sm:text-sm flex items-center space-x-2 shadow-lg transition-all duration-200 transform active:scale-95 group"
-          style={{
-            backgroundColor: isRunning ? '#ef4444' : theme.accentColor,
-            color: '#ffffff',
-            boxShadow: isRunning
-              ? '0 0 20px rgba(239, 68, 68, 0.4)'
-              : `0 0 20px ${theme.glowColor}`,
-          }}
-        >
-          {isRunning ? (
-            <>
-              <Pause className="w-4 h-4 fill-white text-white" />
-              <span className="font-semibold tracking-wide">PAUSE</span>
-            </>
-          ) : (
-            <>
-              <Play className="w-4 h-4 fill-white text-white ml-0.5" />
-              <span className="font-semibold tracking-wide">SIMULATE</span>
-            </>
-          )}
-        </button>
+          {/* Primary Action: Play/Pause */}
+          <Tooltip content={isRunning ? 'Pause simulation' : 'Start simulation'} shortcut="Space">
+            <button
+              onClick={onTogglePlay}
+              className={`flex items-center space-x-1.5 px-3 py-1 rounded text-xs font-semibold tracking-wide transition-all ${
+                isRunning
+                  ? 'bg-sim-accent text-sim-bg hover:opacity-90 shadow-sm'
+                  : 'bg-sim-elevated text-sim-text-primary hover:bg-sim-hover border border-sim-border'
+              }`}
+            >
+              {isRunning ? (
+                <>
+                  <Pause className="w-3.5 h-3.5 fill-current" />
+                  <span className="font-mono text-[11px] tracking-wider uppercase">PAUSE</span>
+                </>
+              ) : (
+                <>
+                  <Play className="w-3.5 h-3.5 fill-current text-sim-accent ml-0.5" />
+                  <span className="font-mono text-[11px] tracking-wider uppercase">RUN</span>
+                </>
+              )}
+            </button>
+          </Tooltip>
 
-        {/* Step Forward */}
-        <button
-          onClick={onStepForward}
-          title="Step Forward 1 Gen (N / →)"
-          className="p-2 rounded-xl bg-white/[0.06] hover:bg-white/[0.14] text-white/80 hover:text-white transition-all"
-        >
-          <SkipForward className="w-4 h-4" />
-        </button>
+          <Tooltip content="Step forward 1 generation" shortcut="→ or N">
+            <button
+              onClick={onStepForward}
+              className="p-1.5 rounded text-xs text-sim-text-secondary hover:text-sim-text-primary hover:bg-sim-hover active:bg-sim-elevated transition-colors"
+            >
+              <SkipForward className="w-3.5 h-3.5" />
+            </button>
+          </Tooltip>
+        </div>
 
-        {/* Speed / Fast Forward Dropdown / Pills */}
-        <div className="flex items-center bg-white/[0.04] p-1 rounded-xl border border-white/5 space-x-1">
-          <FastForward className="w-3.5 h-3.5 text-white/40 ml-1.5 mr-0.5" />
+        <div className="h-4 w-px bg-sim-border mx-0.5 hidden sm:block" />
+
+        {/* GROUP 2: SPEED CONTROLS */}
+        <div className="flex items-center bg-sim-elevated/60 p-0.5 rounded border border-sim-border-subtle space-x-0.5">
           {SPEED_PRESETS.map((preset) => {
             const isActive = speedMultiplier === preset.value;
             return (
-              <button
-                key={preset.value}
-                onClick={() => onSpeedChange(preset.value)}
-                title={preset.title}
-                className={`px-2 py-1 rounded-lg text-xs font-mono font-medium transition-all ${
-                  isActive
-                    ? 'text-white font-bold shadow-sm'
-                    : 'text-white/50 hover:text-white/80 hover:bg-white/5'
-                }`}
-                style={{
-                  backgroundColor: isActive ? theme.accentColor : 'transparent',
-                  color: isActive ? (theme.isLight ? '#ffffff' : '#0a0f14') : undefined,
-                }}
-              >
-                {preset.label}
-              </button>
+              <Tooltip key={preset.value} content={preset.title}>
+                <button
+                  onClick={() => onSpeedChange(preset.value)}
+                  className={`px-1.5 py-0.5 rounded text-[11px] font-mono transition-colors ${
+                    isActive
+                      ? 'bg-sim-accent text-sim-bg font-bold shadow-sm'
+                      : 'text-sim-text-secondary hover:text-sim-text-primary hover:bg-sim-hover'
+                  }`}
+                >
+                  {preset.label}
+                </button>
+              </Tooltip>
             );
           })}
         </div>
 
-        <div className="w-px h-6 bg-white/10 mx-1 hidden sm:block" />
+        <div className="h-4 w-px bg-sim-border mx-0.5 hidden sm:block" />
 
-        {/* Tool Mode Buttons */}
-        <div className="flex items-center bg-white/[0.04] p-1 rounded-xl border border-white/5 space-x-1">
-          <button
-            onClick={() => onSelectTool('draw')}
-            title="Draw Mode (D)"
-            className={`p-2 rounded-lg text-xs transition-colors ${
-              activeTool === 'draw'
-                ? 'bg-white/20 text-white shadow-sm'
-                : 'text-white/50 hover:text-white/90 hover:bg-white/5'
-            }`}
-          >
-            <Pencil className="w-4 h-4" />
-          </button>
+        {/* GROUP 3: TOOLS (Draw, Erase, Pan) */}
+        <div className="flex items-center bg-sim-elevated/60 p-0.5 rounded border border-sim-border-subtle space-x-0.5">
+          <Tooltip content="Draw cells" shortcut="D">
+            <button
+              onClick={() => onSelectTool('draw')}
+              className={`p-1.5 rounded transition-colors ${
+                activeTool === 'draw'
+                  ? 'bg-sim-hover text-sim-accent border border-sim-border'
+                  : 'text-sim-text-secondary hover:text-sim-text-primary hover:bg-sim-hover'
+              }`}
+            >
+              <Pencil className="w-3.5 h-3.5" />
+            </button>
+          </Tooltip>
 
-          <button
-            onClick={() => onSelectTool('erase')}
-            title="Eraser Mode (E)"
-            className={`p-2 rounded-lg text-xs transition-colors ${
-              activeTool === 'erase'
-                ? 'bg-white/20 text-white shadow-sm'
-                : 'text-white/50 hover:text-white/90 hover:bg-white/5'
-            }`}
-          >
-            <Eraser className="w-4 h-4" />
-          </button>
+          <Tooltip content="Erase cells" shortcut="E">
+            <button
+              onClick={() => onSelectTool('erase')}
+              className={`p-1.5 rounded transition-colors ${
+                activeTool === 'erase'
+                  ? 'bg-sim-hover text-sim-accent border border-sim-border'
+                  : 'text-sim-text-secondary hover:text-sim-text-primary hover:bg-sim-hover'
+              }`}
+            >
+              <Eraser className="w-3.5 h-3.5" />
+            </button>
+          </Tooltip>
 
-          <button
-            onClick={() => onSelectTool('pan')}
-            title="Pan / Move Canvas (H)"
-            className={`p-2 rounded-lg text-xs transition-colors ${
-              activeTool === 'pan'
-                ? 'bg-white/20 text-white shadow-sm'
-                : 'text-white/50 hover:text-white/90 hover:bg-white/5'
-            }`}
-          >
-            <Hand className="w-4 h-4" />
-          </button>
+          <Tooltip content="Pan canvas" shortcut="H / Shift+Drag">
+            <button
+              onClick={() => onSelectTool('pan')}
+              className={`p-1.5 rounded transition-colors ${
+                activeTool === 'pan'
+                  ? 'bg-sim-hover text-sim-accent border border-sim-border'
+                  : 'text-sim-text-secondary hover:text-sim-text-primary hover:bg-sim-hover'
+              }`}
+            >
+              <Hand className="w-3.5 h-3.5" />
+            </button>
+          </Tooltip>
         </div>
 
-        {/* Pattern Library Trigger */}
-        <button
-          onClick={onOpenPatternCatalog}
-          title="Open Pattern Catalog (P)"
-          className="flex items-center space-x-1.5 px-3 py-2 rounded-xl bg-white/[0.06] hover:bg-white/[0.14] border border-white/10 text-xs font-medium text-white/90 hover:text-white transition-colors"
-        >
-          <Library className="w-4 h-4 text-emerald-400" />
-          <span className="hidden md:inline">Patterns</span>
-        </button>
+        <div className="h-4 w-px bg-sim-border mx-0.5 hidden sm:block" />
 
-        <div className="w-px h-6 bg-white/10 mx-1 hidden sm:block" />
+        {/* GROUP 4: PATTERN EXPLORER */}
+        <Tooltip content="Pattern Explorer library" shortcut="P">
+          <button
+            onClick={onOpenPatternCatalog}
+            className="flex items-center space-x-1.5 px-2 py-1 rounded bg-sim-elevated hover:bg-sim-hover text-sim-text-primary border border-sim-border text-xs font-medium transition-colors"
+          >
+            <Library className="w-3.5 h-3.5 text-sim-secondary" />
+            <span className="text-[11px] font-sans">Patterns</span>
+          </button>
+        </Tooltip>
 
-        {/* Random Soup (Spawn Life) */}
-        <button
-          onClick={() => onRandomize()}
-          title="Random Soup of Life (S)"
-          className="p-2 sm:px-3 sm:py-2 rounded-xl bg-white/[0.06] hover:bg-white/[0.14] border border-white/10 text-xs font-medium text-white/80 hover:text-white transition-colors flex items-center space-x-1.5"
-        >
-          <Sparkles className="w-4 h-4 text-amber-400" />
-          <span className="hidden lg:inline">Random</span>
-        </button>
+        <div className="h-4 w-px bg-sim-border mx-0.5 hidden sm:block" />
 
-        {/* Clear Canvas */}
-        <button
-          onClick={onClear}
-          title="Clear Universe (C)"
-          className="p-2 rounded-xl bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 text-red-400 hover:text-red-300 transition-colors"
-        >
-          <Trash2 className="w-4 h-4" />
-        </button>
+        {/* GROUP 5: WORLD ACTIONS (Randomize, Clear) */}
+        <div className="flex items-center space-x-1">
+          <Tooltip content="Random primordial soup" shortcut="S">
+            <button
+              onClick={() => onRandomize()}
+              className="flex items-center space-x-1 px-2 py-1 rounded bg-sim-elevated hover:bg-sim-hover text-sim-text-secondary hover:text-sim-text-primary border border-sim-border text-xs transition-colors"
+            >
+              <Sparkles className="w-3 h-3 text-sim-accent" />
+              <span className="text-[11px] hidden md:inline">Random</span>
+            </button>
+          </Tooltip>
+
+          <Tooltip content="Clear entire grid" shortcut="C">
+            <button
+              onClick={onClear}
+              className="p-1 rounded text-sim-text-muted hover:text-sim-danger hover:bg-sim-danger-muted border border-transparent hover:border-sim-danger/30 transition-colors"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+            </button>
+          </Tooltip>
+        </div>
       </div>
     </div>
   );

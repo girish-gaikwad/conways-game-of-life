@@ -11,39 +11,64 @@ body {
   padding: 0;
   user-select: none;
   -webkit-user-select: none;
-  background-color: #0b0f17;
+  background-color: #0B0F0D;
+  color: #E8EEE9;
+  font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+  -webkit-font-smoothing: antialiased;
 }
 
-/* Custom slick scrollbars for pattern palette */
+/* Scientific HUD panel styling */
+.hud-panel {
+  background-color: rgba(18, 25, 21, 0.94);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid #28332C;
+}
+
+.hud-panel-elevated {
+  background-color: #19221C;
+  border: 1px solid #28332C;
+}
+
+.hud-panel-subtle {
+  background-color: rgba(18, 25, 21, 0.8);
+  border: 1px solid #1E2822;
+}
+
+/* Linear-inspired precision scrollbar */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
 }
 
 ::-webkit-scrollbar-track {
-  background: rgba(17, 24, 39, 0.4);
+  background: #0B0F0D;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(75, 85, 99, 0.5);
-  border-radius: 9999px;
+  background: #28332C;
+  border-radius: 2px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(107, 114, 128, 0.8);
+  background: #3C4D42;
 }
 
-/* Glassmorphism panel helper */
-.glass-panel {
-  background: rgba(17, 24, 39, 0.82);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+/* Keyframe for subtle dialog & tooltip fades */
+@keyframes fadeIn {
+  from { opacity: 0; transform: scale(0.98); }
+  to { opacity: 1; transform: scale(1); }
 }
 
-.glass-panel-subtle {
-  background: rgba(22, 30, 46, 0.7);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+@keyframes slideLeft {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 120ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-slideLeft {
+  animation: slideLeft 180ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }

@@ -8,23 +8,33 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        sans: ['Inter', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
+        sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
         mono: ['JetBrains Mono', 'Fira Code', 'Consolas', 'monospace'],
       },
       colors: {
-        game: {
-          dark: '#0b0f17',
-          panel: '#111827',
-          panelBorder: '#1f293d',
-          accent: '#10b981',
-          accentGlow: '#059669',
+        sim: {
+          bg: '#0B0F0D',
+          surface: '#121915',
+          elevated: '#19221C',
+          hover: '#1E2922',
+          accent: '#A6D96A',
+          'accent-muted': 'rgba(166, 217, 106, 0.12)',
+          'accent-glow': 'rgba(166, 217, 106, 0.25)',
+          secondary: '#72BFA0',
+          'text-primary': '#E8EEE9',
+          'text-secondary': '#89958C',
+          'text-muted': '#56635A',
+          danger: '#E16D6D',
+          'danger-muted': 'rgba(225, 109, 109, 0.12)',
+          border: '#28332C',
+          'border-subtle': '#1B241E',
+          'border-focus': '#3C4D42',
         }
       },
       boxShadow: {
-        'glow-emerald': '0 0 15px -3px rgba(16, 185, 129, 0.3), 0 0 6px -2px rgba(16, 185, 129, 0.2)',
-        'glow-cyan': '0 0 15px -3px rgba(6, 182, 212, 0.3), 0 0 6px -2px rgba(6, 182, 212, 0.2)',
-        'glow-amber': '0 0 15px -3px rgba(245, 158, 11, 0.3), 0 0 6px -2px rgba(245, 158, 11, 0.2)',
-        'hud': '0 8px 32px 0 rgba(0, 0, 0, 0.37)',
+        'hud': '0 4px 20px -2px rgba(0, 0, 0, 0.6), 0 0 0 1px #28332C',
+        'popover': '0 10px 38px -10px rgba(0, 0, 0, 0.8), 0 0 0 1px #28332C',
+        'inset-subtle': 'inset 0 1px 0 0 rgba(255, 255, 255, 0.04)',
       }
     },
   },
