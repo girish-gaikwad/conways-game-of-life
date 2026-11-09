@@ -1,6 +1,17 @@
-import React, { useRef, useEffect, useCallback } from 'react';
+
+import React, {
+  useRef,
+  useEffect,
+  useCallback,
+} from 'react';
 import { LifeEngine } from '../core/lifeEngine';
-import { CellStyle, Pattern, Theme, ToolType, ViewportTransform } from '../types/game';
+import {
+  CellStyle,
+  Pattern,
+  Theme,
+  ToolType,
+  ViewportTransform,
+} from '../types/game';
 import { soundFX } from '../utils/audio';
 
 interface GridCanvasProps {
@@ -18,6 +29,12 @@ interface GridCanvasProps {
   setHoverCoord: (coord: { x: number; y: number } | null) => void;
 }
 
+type Point = { x: number; y: number };
+
+const BASE_CELL_SIZE = 16;
+const MIN_ZOOM = 0.2;
+const MAX_ZOOM = 6;
+
 export const GridCanvas: React.FC<GridCanvasProps> = ({
   engine,
   theme,
@@ -32,66 +49,187 @@ export const GridCanvas: React.FC<GridCanvasProps> = ({
   setHoverCoord,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const isMouseDownRef = useRef(false);
-  const mouseButtonRef = useRef<number>(0);
-  const lastMousePosRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
-  const lastDrawnCellRef = useRef<{ x: number; y: number } | null>(null);
-  const drawActionRef = useRef<number>(1); // 1 = draw alive, 0 = erase
+  const contextRef = useRef<CanvasRenderingContext2D | null>(null);
 
-  // Convert screen coordinates to grid coordinates
+  const frameRef = useRef<number>(0);
+  const isMouseDownRef = useRef(false);
+  const mouseButtonRef = useRef(0);
+  const lastMousePosRef = useRef<Point>({ x: 0, y: 0 });
+  const lastDrawnCellRef = useRef<Point | null>(null);
+  const drawActionRef = useRef(1);
+
+  const touchStartRef = useRef<{
+    x: number;
+    y: number;
+    dist: number;
+  } | null>(null);
+
+  // Keep frequently changing callbacks and values accessible to
+  // the animation loop without restarting it on every render.
+  const latestRef = useRef({
+    engine,
+    theme,
+    cellStyle,
+    showGridLines,
+    activeTool,
+    selectedPattern,
+    transform,
+    onCellModified,
+    onPatternPlaced,
+    screenToGrid: null as
+      | ((x: number, y: number) => {
+          x: number;
+          y: number;
+          inBounds: boolean;
+        })
+      | null,
+  });
+
   const screenToGrid = useCallback(
-    (screenX: number, screenY: number): { x: number; y: number; inBounds: boolean } => {
+    (screenX: number, screenY: number) => {
       const canvas = canvasRef.current;
-      if (!canvas) return { x: 0, y: 0, inBounds: false };
+
+      if (!canvas) {
+        return { x: 0, y: 0, inBounds: false };
+      }
 
       const rect = canvas.getBoundingClientRect();
       const cssX = screenX - rect.left;
       const cssY = screenY - rect.top;
 
-      const baseCellSize = 16;
-      const effectiveCellSize = baseCellSize * transform.zoom;
+      const effectiveCellSize = BASE_CELL_SIZE * transform.zoom;
 
-      const gridOriginX = rect.width / 2 + transform.panX - (engine.width * effectiveCellSize) / 2;
-      const gridOriginY = rect.height / 2 + transform.panY - (engine.height * effectiveCellSize) / 2;
+      const originX =
+        rect.width / 2 +
+        transform.panX -
+        (engine.width * effectiveCellSize) / 2;
 
-      const cellX = Math.floor((cssX - gridOriginX) / effectiveCellSize);
-      const cellY = Math.floor((cssY - gridOriginY) / effectiveCellSize);
+      const originY =
+        rect.height / 2 +
+        transform.panY -
+        (engine.height * effectiveCellSize) / 2;
 
-      const inBounds = cellX >= 0 && cellX < engine.width && cellY >= 0 && cellY < engine.height;
+      const x = Math.floor((cssX - originX) / effectiveCellSize);
+      const y = Math.floor((cssY - originY) / effectiveCellSize);
 
-      return { x: cellX, y: cellY, inBounds };
+      return {
+        x,
+        y,
+        inBounds:
+          x >= 0 &&
+          x < engine.width &&
+          y >= 0 &&
+          y < engine.height,
+      };
     },
     [transform, engine.width, engine.height]
   );
 
-  // Line drawing interpolation
+  useEffect(() => {
+    latestRef.current = {
+      engine,
+      theme,
+      cellStyle,
+      showGridLines,
+      activeTool,
+      selectedPattern,
+      transform,
+      onCellModified,
+      onPatternPlaced,
+      screenToGrid,
+    };
+  }, [
+    engine,
+    theme,
+    cellStyle,
+    showGridLines,
+    activeTool,
+    selectedPattern,
+    transform,
+    onCellModified,
+    onPatternPlaced,
+    screenToGrid,
+  ]);
+
+  // ----------------------------------------------------------------
+  // Canvas sizing
+  // ----------------------------------------------------------------
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const resizeCanvas = () => {
+      const rect = canvas.getBoundingClientRect();
+      const dpr = window.devicePixelRatio || 1;
+
+      const width = Math.max(1, Math.round(rect.width * dpr));
+      const height = Math.max(1, Math.round(rect.height * dpr));
+
+      if (canvas.width !== width || canvas.height !== height) {
+        canvas.width = width;
+        canvas.height = height;
+      }
+
+      contextRef.current = canvas.getContext('2d', {
+        alpha: false,
+      });
+    };
+
+    resizeCanvas();
+
+    const observer = new ResizeObserver(resizeCanvas);
+    observer.observe(canvas);
+
+    window.addEventListener('resize', resizeCanvas);
+
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('resize', resizeCanvas);
+    };
+  }, []);
+
+  // ----------------------------------------------------------------
+  // Drawing helpers
+  // ----------------------------------------------------------------
+
   const drawLine = useCallback(
     (x0: number, y0: number, x1: number, y1: number, state: number) => {
       const dx = Math.abs(x1 - x0);
       const dy = Math.abs(y1 - y0);
+
       const sx = x0 < x1 ? 1 : -1;
       const sy = y0 < y1 ? 1 : -1;
+
       let err = dx - dy;
-
-      let currX = x0;
-      let currY = y0;
-
+      let x = x0;
+      let y = y0;
       let changed = false;
+
       while (true) {
-        if (currX >= 0 && currX < engine.width && currY >= 0 && currY < engine.height) {
-          const mod = engine.setCell(currX, currY, state);
-          if (mod) changed = true;
+        if (
+          x >= 0 &&
+          x < engine.width &&
+          y >= 0 &&
+          y < engine.height
+        ) {
+          if (engine.setCell(x, y, state)) {
+            changed = true;
+          }
         }
 
-        if (currX === x1 && currY === y1) break;
+        if (x === x1 && y === y1) break;
+
         const e2 = 2 * err;
+
         if (e2 > -dy) {
           err -= dy;
-          currX += sx;
+          x += sx;
         }
+
         if (e2 < dx) {
           err += dx;
-          currY += sy;
+          y += sy;
         }
       }
 
@@ -103,293 +241,437 @@ export const GridCanvas: React.FC<GridCanvasProps> = ({
     [engine, onCellModified]
   );
 
-  // High-performance requestAnimationFrame loop
+  const placePattern = useCallback(
+    (x: number, y: number) => {
+      if (!selectedPattern) return;
+
+      engine.stampPattern(selectedPattern.grid, x, y, true);
+      soundFX.playCellTone(x + y, true);
+      onCellModified();
+      onPatternPlaced?.();
+    },
+    [
+      engine,
+      selectedPattern,
+      onCellModified,
+      onPatternPlaced,
+    ]
+  );
+
+  const updateHover = useCallback(
+    (clientX: number, clientY: number) => {
+      const { x, y, inBounds } = screenToGrid(clientX, clientY);
+
+      setHoverCoord(inBounds ? { x, y } : null);
+
+      return { x, y, inBounds };
+    },
+    [screenToGrid, setHoverCoord]
+  );
+
+  // ----------------------------------------------------------------
+  // Rendering
+  // ----------------------------------------------------------------
+
   useEffect(() => {
-    let animId: number;
+    let active = true;
 
     const render = () => {
+      if (!active) return;
+
       const canvas = canvasRef.current;
-      if (!canvas) return;
+      const ctx = contextRef.current;
 
-      const ctx = canvas.getContext('2d', { alpha: false });
-      if (!ctx) return;
+      if (!canvas || !ctx) {
+        frameRef.current = requestAnimationFrame(render);
+        return;
+      }
 
+      const {
+        engine,
+        theme,
+        cellStyle,
+        showGridLines,
+        activeTool,
+        selectedPattern,
+        transform,
+        screenToGrid,
+      } = latestRef.current;
+
+      const dpr = window.devicePixelRatio || 1;
       const width = canvas.width;
       const height = canvas.height;
-      const dpr = window.devicePixelRatio || 1;
 
-      // 1. Dark Background
+      const cssWidth = width / dpr;
+      const cssHeight = height / dpr;
+
+      // Background
       ctx.fillStyle = theme.bg;
       ctx.fillRect(0, 0, width, height);
 
       ctx.save();
       ctx.scale(dpr, dpr);
 
-      const cssWidth = width / dpr;
-      const cssHeight = height / dpr;
+      const cellSize = BASE_CELL_SIZE * transform.zoom;
 
-      const baseCellSize = 16;
-      const effectiveCellSize = baseCellSize * transform.zoom;
+      const originX =
+        cssWidth / 2 +
+        transform.panX -
+        (engine.width * cellSize) / 2;
 
-      const originX = cssWidth / 2 + transform.panX - (engine.width * effectiveCellSize) / 2;
-      const originY = cssHeight / 2 + transform.panY - (engine.height * effectiveCellSize) / 2;
+      const originY =
+        cssHeight / 2 +
+        transform.panY -
+        (engine.height * cellSize) / 2;
 
-      // Culling visible bounds
-      const minX = Math.max(0, Math.floor(-originX / effectiveCellSize));
-      const maxX = Math.min(engine.width - 1, Math.ceil((cssWidth - originX) / effectiveCellSize));
-      const minY = Math.max(0, Math.floor(-originY / effectiveCellSize));
-      const maxY = Math.min(engine.height - 1, Math.ceil((cssHeight - originY) / effectiveCellSize));
+      // Only render cells that can appear in the viewport.
+      const minX = Math.max(
+        0,
+        Math.floor(-originX / cellSize)
+      );
 
-      const gridPxWidth = engine.width * effectiveCellSize;
-      const gridPxHeight = engine.height * effectiveCellSize;
+      const maxX = Math.min(
+        engine.width - 1,
+        Math.ceil((cssWidth - originX) / cellSize)
+      );
 
-      // 2. Grid guidelines with contrast fade
-      if (showGridLines && effectiveCellSize >= 5) {
+      const minY = Math.max(
+        0,
+        Math.floor(-originY / cellSize)
+      );
+
+      const maxY = Math.min(
+        engine.height - 1,
+        Math.ceil((cssHeight - originY) / cellSize)
+      );
+
+      const gridWidth = engine.width * cellSize;
+      const gridHeight = engine.height * cellSize;
+
+      // Grid lines
+      if (showGridLines && cellSize >= 5) {
         ctx.beginPath();
         ctx.strokeStyle = theme.gridLineColor;
         ctx.lineWidth = 0.5;
 
-        const lineAlpha = Math.min(1, (effectiveCellSize - 5) / 10);
-        ctx.globalAlpha = lineAlpha;
+        ctx.globalAlpha = Math.min(
+          0.65,
+          (cellSize - 5) / 12
+        );
 
         for (let x = minX; x <= maxX + 1; x++) {
-          const px = originX + x * effectiveCellSize;
+          const px = originX + x * cellSize;
           ctx.moveTo(px, originY);
-          ctx.lineTo(px, originY + gridPxHeight);
+          ctx.lineTo(px, originY + gridHeight);
         }
 
         for (let y = minY; y <= maxY + 1; y++) {
-          const py = originY + y * effectiveCellSize;
+          const py = originY + y * cellSize;
           ctx.moveTo(originX, py);
-          ctx.lineTo(originX + gridPxWidth, py);
+          ctx.lineTo(originX + gridWidth, py);
         }
+
         ctx.stroke();
-        ctx.globalAlpha = 1.0;
+        ctx.globalAlpha = 1;
       }
 
-      // 3. Grid Perimeter Border
-      ctx.strokeStyle = '#28332C';
+      // Universe boundary
+      ctx.strokeStyle = theme.gridLineColor;
       ctx.lineWidth = 1;
-      ctx.strokeRect(originX, originY, gridPxWidth, gridPxHeight);
+      ctx.strokeRect(
+        originX,
+        originY,
+        gridWidth,
+        gridHeight
+      );
 
-      // 4. Living Cells
-      const cellGap = effectiveCellSize >= 4 ? 1 : 0;
-      const cellInnerSize = Math.max(1, effectiveCellSize - cellGap);
+      // Living cells
+      const gap = cellSize >= 4 ? 1 : 0;
+      const innerSize = Math.max(1, cellSize - gap);
       const isHeatmap = cellStyle === 'heatmap';
 
       for (let y = minY; y <= maxY; y++) {
-        const rowIdx = y * engine.width;
-        const cellY = originY + y * effectiveCellSize;
+        const rowIndex = y * engine.width;
+        const py = originY + y * cellSize;
 
         for (let x = minX; x <= maxX; x++) {
-          const idx = rowIdx + x;
-          if (engine.currentGrid[idx] === 1) {
-            const cellX = originX + x * effectiveCellSize;
-            const age = engine.ageGrid[idx];
+          const index = rowIndex + x;
 
-            if (isHeatmap) {
-              if (age <= 1) {
-                ctx.fillStyle = theme.cellNewColor;
-              } else if (age < 12) {
-                ctx.fillStyle = theme.cellColor;
-              } else {
-                ctx.fillStyle = theme.cellOldColor;
-              }
-            } else {
-              ctx.fillStyle = age <= 1 ? theme.cellNewColor : theme.cellColor;
-            }
+          if (engine.currentGrid[index] !== 1) continue;
 
-            if (cellStyle === 'rounded' && cellInnerSize >= 6) {
-              const radius = Math.min(2, cellInnerSize / 4);
-              ctx.beginPath();
-              ctx.roundRect(cellX, cellY, cellInnerSize, cellInnerSize, radius);
-              ctx.fill();
-            } else if (cellStyle === 'dots' && cellInnerSize >= 4) {
-              const r = cellInnerSize / 2;
-              ctx.beginPath();
-              ctx.arc(cellX + r, cellY + r, r, 0, Math.PI * 2);
-              ctx.fill();
+          const px = originX + x * cellSize;
+          const age = engine.ageGrid[index];
+
+          if (isHeatmap) {
+            if (age <= 1) {
+              ctx.fillStyle = theme.cellNewColor;
+            } else if (age < 12) {
+              ctx.fillStyle = theme.cellColor;
             } else {
-              ctx.fillRect(cellX, cellY, cellInnerSize, cellInnerSize);
+              ctx.fillStyle = theme.cellOldColor;
             }
+          } else {
+            ctx.fillStyle =
+              age <= 1
+                ? theme.cellNewColor
+                : theme.cellColor;
+          }
+
+          if (cellStyle === 'rounded' && innerSize >= 6) {
+            const radius = Math.min(2, innerSize / 4);
+
+            ctx.beginPath();
+            ctx.roundRect(
+              px,
+              py,
+              innerSize,
+              innerSize,
+              radius
+            );
+            ctx.fill();
+          } else if (cellStyle === 'dots' && innerSize >= 4) {
+            const radius = innerSize / 2;
+
+            ctx.beginPath();
+            ctx.arc(
+              px + radius,
+              py + radius,
+              radius,
+              0,
+              Math.PI * 2
+            );
+            ctx.fill();
+          } else {
+            ctx.fillRect(px, py, innerSize, innerSize);
           }
         }
       }
 
-      // 5. Ghost Pattern Preview for Stamping
-      if (activeTool === 'stamp' && selectedPattern && lastMousePosRef.current) {
-        const { x: hx, y: hy, inBounds } = screenToGrid(
-          lastMousePosRef.current.x,
-          lastMousePosRef.current.y
-        );
+      // Pattern placement preview
+      if (
+        activeTool === 'stamp' &&
+        selectedPattern &&
+        screenToGrid
+      ) {
+        const mouse = lastMousePosRef.current;
+
+        const { x: hoverX, y: hoverY, inBounds } =
+          screenToGrid(mouse.x, mouse.y);
 
         if (inBounds) {
-          const pGrid = selectedPattern.grid;
-          const pRows = pGrid.length;
-          const pCols = pGrid[0].length;
-          const ox = Math.floor(hx - pCols / 2);
-          const oy = Math.floor(hy - pRows / 2);
+          const grid = selectedPattern.grid;
+          const rows = grid.length;
+          const cols = grid[0]?.length ?? 0;
 
-          // Pattern bounding box outline
-          const bPx = originX + ox * effectiveCellSize;
-          const bPy = originY + oy * effectiveCellSize;
-          const bW = pCols * effectiveCellSize;
-          const bH = pRows * effectiveCellSize;
+          const offsetX = Math.floor(hoverX - cols / 2);
+          const offsetY = Math.floor(hoverY - rows / 2);
 
-          ctx.strokeStyle = 'rgba(166, 217, 106, 0.4)';
+          const boxX = originX + offsetX * cellSize;
+          const boxY = originY + offsetY * cellSize;
+
+          // Preview boundary
+          ctx.save();
+
+          ctx.strokeStyle = theme.accentColor;
+          ctx.globalAlpha = 0.7;
           ctx.lineWidth = 1;
           ctx.setLineDash([4, 4]);
-          ctx.strokeRect(bPx, bPy, bW, bH);
+
+          ctx.strokeRect(
+            boxX,
+            boxY,
+            cols * cellSize,
+            rows * cellSize
+          );
+
           ctx.setLineDash([]);
 
-          ctx.fillStyle = 'rgba(166, 217, 106, 0.4)';
-          for (let r = 0; r < pRows; r++) {
-            for (let c = 0; c < pCols; c++) {
-              if (pGrid[r][c] === 1) {
-                const gx = ox + c;
-                const gy = oy + r;
-                if (gx >= 0 && gx < engine.width && gy >= 0 && gy < engine.height) {
-                  const px = originX + gx * effectiveCellSize;
-                  const py = originY + gy * effectiveCellSize;
-                  ctx.fillRect(px, py, cellInnerSize, cellInnerSize);
-                }
+          // Ghost cells
+          ctx.fillStyle = theme.accentColor;
+          ctx.globalAlpha = 0.4;
+
+          for (let row = 0; row < rows; row++) {
+            for (let col = 0; col < cols; col++) {
+              if (grid[row][col] !== 1) continue;
+
+              const gx = offsetX + col;
+              const gy = offsetY + row;
+
+              if (
+                gx < 0 ||
+                gx >= engine.width ||
+                gy < 0 ||
+                gy >= engine.height
+              ) {
+                continue;
               }
+
+              ctx.fillRect(
+                originX + gx * cellSize,
+                originY + gy * cellSize,
+                innerSize,
+                innerSize
+              );
             }
           }
+
+          ctx.restore();
         }
       }
 
       ctx.restore();
-      animId = requestAnimationFrame(render);
+
+      frameRef.current = requestAnimationFrame(render);
     };
 
-    animId = requestAnimationFrame(render);
-    return () => cancelAnimationFrame(animId);
-  }, [
-    engine,
-    theme,
-    cellStyle,
-    showGridLines,
-    activeTool,
-    selectedPattern,
-    transform,
-    screenToGrid,
-  ]);
+    frameRef.current = requestAnimationFrame(render);
 
-  // Window Resize & High DPI
-  useEffect(() => {
-    const handleResize = () => {
-      const canvas = canvasRef.current;
-      if (!canvas) return;
-
-      const dpr = window.devicePixelRatio || 1;
-      const rect = canvas.getBoundingClientRect();
-
-      canvas.width = rect.width * dpr;
-      canvas.height = rect.height * dpr;
+    return () => {
+      active = false;
+      cancelAnimationFrame(frameRef.current);
     };
-
-    handleResize();
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  // Mouse wheel zoom
+  // ----------------------------------------------------------------
+  // Mouse interactions
+  // ----------------------------------------------------------------
+
   const handleWheel = (e: React.WheelEvent<HTMLCanvasElement>) => {
     e.preventDefault();
-    const zoomFactor = e.deltaY < 0 ? 1.12 : 0.89;
-    const newZoom = Math.min(Math.max(0.2, transform.zoom * zoomFactor), 6.0);
+
+    const factor = e.deltaY < 0 ? 1.12 : 0.89;
+
+    const newZoom = Math.min(
+      MAX_ZOOM,
+      Math.max(MIN_ZOOM, transform.zoom * factor)
+    );
 
     const canvas = canvasRef.current;
     if (!canvas) return;
+
     const rect = canvas.getBoundingClientRect();
+
     const mouseX = e.clientX - rect.left - rect.width / 2;
     const mouseY = e.clientY - rect.top - rect.height / 2;
 
     const scale = newZoom / transform.zoom;
-    const newPanX = mouseX - (mouseX - transform.panX) * scale;
-    const newPanY = mouseY - (mouseY - transform.panY) * scale;
 
     onTransformChange({
-      panX: newPanX,
-      panY: newPanY,
       zoom: newZoom,
+      panX: mouseX - (mouseX - transform.panX) * scale,
+      panY: mouseY - (mouseY - transform.panY) * scale,
     });
   };
 
-  // Mouse Down
-  const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
+  const handleMouseDown = (
+    e: React.MouseEvent<HTMLCanvasElement>
+  ) => {
+    if (e.button === 2) e.preventDefault();
 
     isMouseDownRef.current = true;
     mouseButtonRef.current = e.button;
-    lastMousePosRef.current = { x: e.clientX, y: e.clientY };
 
-    // Middle click or space+click or Pan tool => start panning
-    if (e.button === 1 || activeTool === 'pan' || e.shiftKey) {
+    lastMousePosRef.current = {
+      x: e.clientX,
+      y: e.clientY,
+    };
+
+    if (
+      e.button === 1 ||
+      activeTool === 'pan' ||
+      e.shiftKey
+    ) {
       return;
     }
 
-    const { x, y, inBounds } = screenToGrid(e.clientX, e.clientY);
+    const { x, y, inBounds } = screenToGrid(
+      e.clientX,
+      e.clientY
+    );
+
     if (!inBounds) return;
 
     if (activeTool === 'stamp' && selectedPattern) {
-      engine.stampPattern(selectedPattern.grid, x, y, true);
-      soundFX.playCellTone(x + y, true);
-      onCellModified();
-      if (onPatternPlaced) onPatternPlaced();
+      placePattern(x, y);
       return;
     }
 
     if (activeTool === 'erase' || e.button === 2) {
       drawActionRef.current = 0;
-      engine.setCell(x, y, 0);
-      soundFX.playCellTone(x + y, false);
-      onCellModified();
     } else {
-      const currentlyAlive = engine.getCell(x, y) === 1;
-      drawActionRef.current = currentlyAlive ? 0 : 1;
-      engine.setCell(x, y, drawActionRef.current);
-      soundFX.playCellTone(x + y, drawActionRef.current === 1);
+      drawActionRef.current =
+        engine.getCell(x, y) === 1 ? 0 : 1;
+    }
+
+    const changed = engine.setCell(
+      x,
+      y,
+      drawActionRef.current
+    );
+
+    if (changed) {
+      soundFX.playCellTone(
+        x + y,
+        drawActionRef.current === 1
+      );
       onCellModified();
     }
 
     lastDrawnCellRef.current = { x, y };
   };
 
-  // Mouse Move
-  const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    lastMousePosRef.current = { x: e.clientX, y: e.clientY };
+  const handleMouseMove = (
+    e: React.MouseEvent<HTMLCanvasElement>
+  ) => {
+    const previous = lastMousePosRef.current;
 
-    const { x, y, inBounds } = screenToGrid(e.clientX, e.clientY);
-    if (inBounds) {
-      setHoverCoord({ x, y });
-    } else {
-      setHoverCoord(null);
-    }
+    const dx = e.clientX - previous.x;
+    const dy = e.clientY - previous.y;
+
+    lastMousePosRef.current = {
+      x: e.clientX,
+      y: e.clientY,
+    };
+
+    const { x, y, inBounds } = updateHover(
+      e.clientX,
+      e.clientY
+    );
 
     if (!isMouseDownRef.current) return;
 
-    const dx = e.clientX - lastMousePosRef.current.x;
-    const dy = e.clientY - lastMousePosRef.current.y;
-
-    if (mouseButtonRef.current === 1 || activeTool === 'pan' || e.shiftKey) {
+    if (
+      mouseButtonRef.current === 1 ||
+      activeTool === 'pan' ||
+      e.shiftKey
+    ) {
       onTransformChange({
         ...transform,
-        panX: transform.panX + (e.movementX || dx),
-        panY: transform.panY + (e.movementY || dy),
+        panX: transform.panX + dx,
+        panY: transform.panY + dy,
       });
+
       return;
     }
 
     if (activeTool === 'stamp') return;
 
     if (inBounds) {
-      const prev = lastDrawnCellRef.current;
-      if (prev && (prev.x !== x || prev.y !== y)) {
-        drawLine(prev.x, prev.y, x, y, drawActionRef.current);
+      const previousCell = lastDrawnCellRef.current;
+
+      if (
+        previousCell &&
+        (previousCell.x !== x || previousCell.y !== y)
+      ) {
+        drawLine(
+          previousCell.x,
+          previousCell.y,
+          x,
+          y,
+          drawActionRef.current
+        );
       }
+
       lastDrawnCellRef.current = { x, y };
     }
   };
@@ -405,80 +687,179 @@ export const GridCanvas: React.FC<GridCanvasProps> = ({
     setHoverCoord(null);
   };
 
-  // Touch handlers
-  const touchStartRef = useRef<{ x: number; y: number; dist: number } | null>(null);
+  // ----------------------------------------------------------------
+  // Touch interactions
+  // ----------------------------------------------------------------
 
-  const handleTouchStart = (e: React.TouchEvent<HTMLCanvasElement>) => {
+  const handleTouchStart = (
+    e: React.TouchEvent<HTMLCanvasElement>
+  ) => {
     if (e.touches.length === 1) {
       const touch = e.touches[0];
-      lastMousePosRef.current = { x: touch.clientX, y: touch.clientY };
-      touchStartRef.current = { x: touch.clientX, y: touch.clientY, dist: 0 };
+
+      lastMousePosRef.current = {
+        x: touch.clientX,
+        y: touch.clientY,
+      };
+
+      touchStartRef.current = {
+        x: touch.clientX,
+        y: touch.clientY,
+        dist: 0,
+      };
+
       isMouseDownRef.current = true;
 
-      const { x, y, inBounds } = screenToGrid(touch.clientX, touch.clientY);
-      if (inBounds) {
-        if (activeTool === 'stamp' && selectedPattern) {
-          engine.stampPattern(selectedPattern.grid, x, y, true);
-          soundFX.playCellTone(x + y, true);
-          onCellModified();
-          if (onPatternPlaced) onPatternPlaced();
-        } else if (activeTool === 'erase') {
-          drawActionRef.current = 0;
-          engine.setCell(x, y, 0);
-          onCellModified();
-        } else if (activeTool === 'draw') {
-          const alive = engine.getCell(x, y) === 1;
-          drawActionRef.current = alive ? 0 : 1;
-          engine.setCell(x, y, drawActionRef.current);
+      const { x, y, inBounds } = screenToGrid(
+        touch.clientX,
+        touch.clientY
+      );
+
+      if (!inBounds) return;
+
+      if (activeTool === 'stamp' && selectedPattern) {
+        placePattern(x, y);
+      } else if (
+        activeTool === 'erase' ||
+        activeTool === 'draw'
+      ) {
+        drawActionRef.current =
+          activeTool === 'erase'
+            ? 0
+            : engine.getCell(x, y) === 1
+              ? 0
+              : 1;
+
+        const changed = engine.setCell(
+          x,
+          y,
+          drawActionRef.current
+        );
+
+        if (changed) {
+          soundFX.playCellTone(
+            x + y,
+            drawActionRef.current === 1
+          );
           onCellModified();
         }
+
         lastDrawnCellRef.current = { x, y };
       }
     } else if (e.touches.length === 2) {
-      const dx = e.touches[0].clientX - e.touches[1].clientX;
-      const dy = e.touches[0].clientY - e.touches[1].clientY;
-      const dist = Math.sqrt(dx * dx + dy * dy);
+      isMouseDownRef.current = false;
+      lastDrawnCellRef.current = null;
+
+      const [a, b] = Array.from(e.touches);
+
+      const dx = a.clientX - b.clientX;
+      const dy = a.clientY - b.clientY;
+
       touchStartRef.current = {
-        x: (e.touches[0].clientX + e.touches[1].clientX) / 2,
-        y: (e.touches[0].clientY + e.touches[1].clientY) / 2,
-        dist,
+        x: (a.clientX + b.clientX) / 2,
+        y: (a.clientY + b.clientY) / 2,
+        dist: Math.hypot(dx, dy),
       };
     }
   };
 
-  const handleTouchMove = (e: React.TouchEvent<HTMLCanvasElement>) => {
-    if (e.touches.length === 1 && touchStartRef.current) {
+  const handleTouchMove = (
+    e: React.TouchEvent<HTMLCanvasElement>
+  ) => {
+    e.preventDefault();
+
+    if (
+      e.touches.length === 1 &&
+      touchStartRef.current
+    ) {
       const touch = e.touches[0];
-      const moveX = touch.clientX - touchStartRef.current.x;
-      const moveY = touch.clientY - touchStartRef.current.y;
+
+      const dx = touch.clientX - touchStartRef.current.x;
+      const dy = touch.clientY - touchStartRef.current.y;
 
       if (activeTool === 'pan') {
         onTransformChange({
           ...transform,
-          panX: transform.panX + moveX,
-          panY: transform.panY + moveY,
+          panX: transform.panX + dx,
+          panY: transform.panY + dy,
         });
+
         touchStartRef.current.x = touch.clientX;
         touchStartRef.current.y = touch.clientY;
-      } else {
-        const { x, y, inBounds } = screenToGrid(touch.clientX, touch.clientY);
-        if (inBounds && lastDrawnCellRef.current) {
-          drawLine(lastDrawnCellRef.current.x, lastDrawnCellRef.current.y, x, y, drawActionRef.current);
+
+        return;
+      }
+
+      if (
+        activeTool === 'draw' ||
+        activeTool === 'erase'
+      ) {
+        const { x, y, inBounds } = screenToGrid(
+          touch.clientX,
+          touch.clientY
+        );
+
+        const previous = lastDrawnCellRef.current;
+
+        if (inBounds && previous) {
+          drawLine(
+            previous.x,
+            previous.y,
+            x,
+            y,
+            drawActionRef.current
+          );
+
           lastDrawnCellRef.current = { x, y };
         }
       }
-    } else if (e.touches.length === 2 && touchStartRef.current && touchStartRef.current.dist > 0) {
-      const dx = e.touches[0].clientX - e.touches[1].clientX;
-      const dy = e.touches[0].clientY - e.touches[1].clientY;
-      const dist = Math.sqrt(dx * dx + dy * dy);
+    } else if (
+      e.touches.length === 2 &&
+      touchStartRef.current &&
+      touchStartRef.current.dist > 0
+    ) {
+      const [a, b] = Array.from(e.touches);
 
-      const ratio = dist / touchStartRef.current.dist;
-      const newZoom = Math.min(Math.max(0.2, transform.zoom * ratio), 6.0);
-      onTransformChange({
-        ...transform,
-        zoom: newZoom,
-      });
-      touchStartRef.current.dist = dist;
+      const dx = a.clientX - b.clientX;
+      const dy = a.clientY - b.clientY;
+
+      const distance = Math.hypot(dx, dy);
+      const ratio = distance / touchStartRef.current.dist;
+
+      const newZoom = Math.min(
+        MAX_ZOOM,
+        Math.max(MIN_ZOOM, transform.zoom * ratio)
+      );
+
+      const canvas = canvasRef.current;
+
+      if (canvas) {
+        const rect = canvas.getBoundingClientRect();
+
+        const centerX =
+          (a.clientX + b.clientX) / 2 -
+          rect.left -
+          rect.width / 2;
+
+        const centerY =
+          (a.clientY + b.clientY) / 2 -
+          rect.top -
+          rect.height / 2;
+
+        const scale = newZoom / transform.zoom;
+
+        onTransformChange({
+          zoom: newZoom,
+          panX:
+            centerX -
+            (centerX - transform.panX) * scale,
+          panY:
+            centerY -
+            (centerY - transform.panY) * scale,
+        });
+      }
+
+      touchStartRef.current.dist = distance;
     }
   };
 
@@ -488,14 +869,24 @@ export const GridCanvas: React.FC<GridCanvasProps> = ({
     lastDrawnCellRef.current = null;
   };
 
+  // ----------------------------------------------------------------
+  // Canvas
+  // ----------------------------------------------------------------
+
   return (
     <canvas
       ref={canvasRef}
-      className={`w-full h-full block ${
-        activeTool === 'pan' ? 'cursor-grab active:cursor-grabbing' :
-        activeTool === 'stamp' ? 'cursor-cell' :
-        activeTool === 'erase' ? 'cursor-crosshair' : 'cursor-crosshair'
+      className={`block h-full w-full select-none ${
+        activeTool === 'pan'
+          ? 'cursor-grab active:cursor-grabbing'
+          : activeTool === 'stamp'
+            ? 'cursor-cell'
+            : 'cursor-crosshair'
       }`}
+      style={{
+        touchAction: 'none',
+        WebkitTapHighlightColor: 'transparent',
+      }}
       onContextMenu={(e) => e.preventDefault()}
       onWheel={handleWheel}
       onMouseDown={handleMouseDown}
@@ -505,6 +896,7 @@ export const GridCanvas: React.FC<GridCanvasProps> = ({
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
+      onTouchCancel={handleTouchEnd}
     />
   );
 };

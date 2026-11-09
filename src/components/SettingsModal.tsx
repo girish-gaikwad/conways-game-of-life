@@ -1,5 +1,15 @@
+
 import React, { useState } from 'react';
-import { X, Sliders, Eye, Box, Volume2, Globe, Shield, Cpu, Check } from 'lucide-react';
+import {
+  X,
+  SlidersHorizontal,
+  Eye,
+  Box,
+  Volume2,
+  Globe,
+  Cpu,
+  Check,
+} from 'lucide-react';
 import * as Dialog from '@radix-ui/react-dialog';
 import * as Tabs from '@radix-ui/react-tabs';
 import { CellStyle, RuleSet, Theme } from '../types/game';
@@ -25,11 +35,99 @@ interface SettingsModalProps {
 }
 
 const GRID_SIZES = [
-  { label: 'Compact', w: 80, h: 50, desc: '80×50 (4,000 cells) — High FPS for laptops & mobile' },
-  { label: 'Standard', w: 120, h: 80, desc: '120×80 (9,600 cells) — Optimal balanced canvas' },
-  { label: 'Large', w: 160, h: 100, desc: '160×100 (16,000 cells) — Expansive spaceship runways' },
-  { label: 'Vast', w: 220, h: 140, desc: '220×140 (30,800 cells) — Mega ecosystem sandbox' },
+  { label: 'Compact', w: 80, h: 50, desc: '4,000 cells' },
+  { label: 'Standard', w: 120, h: 80, desc: '9,600 cells' },
+  { label: 'Large', w: 160, h: 100, desc: '16,000 cells' },
+  { label: 'Vast', w: 220, h: 140, desc: '30,800 cells' },
 ];
+
+type TabId = 'cells' | 'physics' | 'universe';
+
+const SectionHeading = ({
+  title,
+  description,
+  muted,
+}: {
+  title: string;
+  description?: string;
+  muted: string;
+}) => (
+  <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
+    <h3 className="text-[11px] font-semibold uppercase tracking-[0.08em]">
+      {title}
+    </h3>
+    {description && (
+      <span className="text-[11px]" style={{ color: muted }}>
+        {description}
+      </span>
+    )}
+  </div>
+);
+
+const SettingRow = ({
+  icon: Icon,
+  title,
+  description,
+  enabled,
+  onToggle,
+  theme,
+  text,
+  muted,
+}: {
+  icon: React.ElementType;
+  title: string;
+  description: string;
+  enabled: boolean;
+  onToggle: () => void;
+  theme: Theme;
+  text: string;
+  muted: string;
+}) => (
+  <div
+    className="flex items-center justify-between gap-4 border px-3.5 py-3"
+    style={{
+      backgroundColor: theme.panelBg,
+      borderColor: theme.gridLineColor,
+    }}
+  >
+    <div className="flex min-w-0 items-center gap-3">
+      <Icon
+        size={16}
+        strokeWidth={1.7}
+        style={{ color: theme.accentColor }}
+        className="shrink-0"
+      />
+      <div className="min-w-0">
+        <div className="text-xs font-medium" style={{ color: text }}>
+          {title}
+        </div>
+        <p className="mt-0.5 text-[11px] leading-relaxed" style={{ color: muted }}>
+          {description}
+        </p>
+      </div>
+    </div>
+
+    <button
+      type="button"
+      role="switch"
+      aria-checked={enabled}
+      aria-label={title}
+      onClick={onToggle}
+      className="relative h-[19px] w-[34px] shrink-0 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
+      style={{
+        backgroundColor: enabled ? theme.accentColor : '#454D47',
+        '--tw-ring-color': theme.accentColor,
+        '--tw-ring-offset-color': theme.panelBg,
+      } as React.CSSProperties}
+    >
+      <span
+        className={`absolute top-[3px] h-[13px] w-[13px] bg-white transition-transform ${
+          enabled ? 'translate-x-[18px]' : 'translate-x-[3px]'
+        }`}
+      />
+    </button>
+  </div>
+);
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({
   isOpen,
@@ -49,483 +147,459 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   onSelectRule,
   theme,
 }) => {
-  const [activeTab, setActiveTab] = useState<'cells' | 'physics' | 'universe'>('cells');
+  const [activeTab, setActiveTab] = useState<TabId>('cells');
+
+  // All colours come from the existing Theme interface.
+  const text = theme.isLight ? '#202820' : '#E5EAE5';
+  const muted = theme.isLight ? '#626D64' : '#929D94';
+  const border = theme.gridLineColor;
+  const selectedBg = `${theme.accentColor}18`;
+
+  const tabItems = [
+    { id: 'cells' as const, label: 'Display', icon: Eye },
+    { id: 'physics' as const, label: 'Rules', icon: Cpu },
+    { id: 'universe' as const, label: 'Universe', icon: Globe },
+  ];
+
+  const cellModes: {
+    id: CellStyle;
+    label: string;
+    description: string;
+    preview: React.ReactNode;
+  }[] = [
+    {
+      id: 'square',
+      label: 'Square',
+      description: 'Classic pixel geometry',
+      preview: (
+        <div className="flex gap-1">
+          {[0, 1, 2].map((i) => (
+            <div
+              key={i}
+              className="h-3.5 w-3.5"
+              style={{ backgroundColor: theme.cellColor }}
+            />
+          ))}
+        </div>
+      ),
+    },
+    {
+      id: 'rounded',
+      label: 'Rounded',
+      description: 'Softened cell edges',
+      preview: (
+        <div className="flex gap-1">
+          {[0, 1, 2].map((i) => (
+            <div
+              key={i}
+              className="h-3.5 w-3.5 rounded-[3px]"
+              style={{ backgroundColor: theme.cellColor }}
+            />
+          ))}
+        </div>
+      ),
+    },
+    {
+      id: 'dots',
+      label: 'Dot matrix',
+      description: 'Circular cell rendering',
+      preview: (
+        <div className="flex gap-1.5">
+          {[0, 1, 2].map((i) => (
+            <div
+              key={i}
+              className="h-3.5 w-3.5 rounded-full"
+              style={{ backgroundColor: theme.cellColor }}
+            />
+          ))}
+        </div>
+      ),
+    },
+    {
+      id: 'heatmap',
+      label: 'Age heatmap',
+      description: 'Colour by cell age',
+      preview: (
+        <div className="flex gap-1">
+          {[theme.cellNewColor, theme.cellColor, theme.cellOldColor].map(
+            (color, i) => (
+              <div
+                key={i}
+                className="h-3.5 w-3.5"
+                style={{ backgroundColor: color }}
+              />
+            )
+          )}
+        </div>
+      ),
+    },
+  ];
 
   return (
-    <Dialog.Root open={isOpen} onOpenChange={(open) => !open && onClose()}>
+    <Dialog.Root
+      open={isOpen}
+      onOpenChange={(open) => !open && onClose()}
+    >
       <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm animate-fadeIn" />
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 pointer-events-none">
+        <Dialog.Overlay className="fixed inset-0 z-50 bg-black/70 backdrop-blur-[2px] animate-fadeIn" />
+
+        <div className="pointer-events-none fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6">
           <Dialog.Content
-            className="pointer-events-auto relative w-full max-w-xl border rounded-xl shadow-2xl overflow-hidden flex flex-col font-sans outline-none transition-colors max-h-[88vh] animate-fadeIn"
+            className="pointer-events-auto flex max-h-[88vh] w-full max-w-[590px] flex-col overflow-hidden border shadow-2xl outline-none animate-fadeIn"
             style={{
-              backgroundColor: theme.panelBg,
-              borderColor: theme.borderColor,
-              color: theme.textPrimary,
+              backgroundColor: theme.bg,
+              borderColor: border,
+              color: text,
             }}
           >
             {/* Header */}
             <div
-              className="flex items-center justify-between px-6 py-4 border-b transition-colors"
+              className="flex shrink-0 items-center justify-between border-b px-5 py-4"
               style={{
                 backgroundColor: theme.panelBg,
-                borderColor: theme.borderColor,
+                borderColor: border,
               }}
             >
-              <div className="flex items-center space-x-3">
-                <div
-                  className="p-1.5 rounded-lg border"
-                  style={{
-                    backgroundColor: theme.elevatedBg,
-                    borderColor: theme.borderColor,
-                    color: theme.accentColor,
-                  }}
-                >
-                  <Sliders className="w-4 h-4" />
-                </div>
+              <div className="flex items-center gap-3">
+                <SlidersHorizontal
+                  size={18}
+                  strokeWidth={1.6}
+                  style={{ color: theme.accentColor }}
+                />
+
                 <div>
-                  <Dialog.Title className="text-sm font-semibold tracking-wider font-mono uppercase">
-                    SIMULATION SETTINGS
+                  <Dialog.Title className="text-[13px] font-semibold tracking-wide">
+                    Settings
                   </Dialog.Title>
                   <Dialog.Description
-                    className="text-xs mt-0.5"
-                    style={{ color: theme.textSecondary }}
+                    className="mt-0.5 text-[11px]"
+                    style={{ color: muted }}
                   >
-                    Customize rendering optics, physics rules, and universe dimensions
+                    Configure your simulation environment
                   </Dialog.Description>
                 </div>
               </div>
+
               <Dialog.Close asChild>
                 <button
-                  className="p-1.5 rounded-lg transition-colors hover:opacity-70"
-                  style={{ color: theme.textSecondary }}
+                  type="button"
+                  aria-label="Close settings"
+                  className="flex h-8 w-8 items-center justify-center transition-colors hover:bg-white/[0.07]"
+                  style={{ color: muted }}
                 >
-                  <X className="w-4 h-4" />
+                  <X size={17} />
                 </button>
               </Dialog.Close>
             </div>
 
-            {/* Segmented Category Tabs */}
+            {/* Navigation */}
             <Tabs.Root
               value={activeTab}
-              onValueChange={(v) => setActiveTab(v as 'cells' | 'physics' | 'universe')}
-              className="flex flex-col flex-1 overflow-hidden"
+              onValueChange={(value) => setActiveTab(value as TabId)}
+              className="flex min-h-0 flex-1 flex-col"
             >
               <Tabs.List
-                className="flex items-center px-6 pt-3 pb-2 border-b space-x-2"
+                className="flex shrink-0 items-center gap-5 border-b px-5"
                 style={{
                   backgroundColor: theme.panelBg,
-                  borderColor: theme.borderColor,
+                  borderColor: border,
                 }}
               >
-                {[
-                  { id: 'cells', label: 'Cell Optics & Display', icon: Eye },
-                  { id: 'physics', label: 'Rules & Physics', icon: Cpu },
-                  { id: 'universe', label: 'Dimensions & Audio', icon: Shield },
-                ].map((tab) => {
-                  const isActive = activeTab === tab.id;
-                  const Icon = tab.icon;
+                {tabItems.map(({ id, label, icon: Icon }) => {
+                  const active = activeTab === id;
+
                   return (
                     <Tabs.Trigger
-                      key={tab.id}
-                      value={tab.id}
-                      className="flex items-center space-x-2 px-3 py-1.5 rounded-lg text-xs font-mono transition-all outline-none"
+                      key={id}
+                      value={id}
+                      className="relative flex items-center gap-2 py-3 text-xs transition-colors focus-visible:outline-none"
                       style={{
-                        backgroundColor: isActive ? theme.elevatedBg : 'transparent',
-                        color: isActive ? theme.accentColor : theme.textSecondary,
-                        borderColor: isActive ? theme.accentColor : 'transparent',
-                        borderWidth: 1,
-                        fontWeight: isActive ? 600 : 400,
+                        color: active ? theme.accentColor : muted,
                       }}
                     >
-                      <Icon className="w-3.5 h-3.5" />
-                      <span>{tab.label}</span>
+                      <Icon size={14} strokeWidth={1.7} />
+                      {label}
+
+                      {active && (
+                        <span
+                          className="absolute bottom-0 left-0 h-[2px] w-full"
+                          style={{ backgroundColor: theme.accentColor }}
+                        />
+                      )}
                     </Tabs.Trigger>
                   );
                 })}
               </Tabs.List>
 
-              {/* Tab 1: Cell Optics & Display */}
+              {/* DISPLAY TAB */}
               <Tabs.Content
                 value="cells"
-                className="p-6 space-y-6 overflow-y-auto flex-1 outline-none"
+                className="min-h-0 flex-1 space-y-6 overflow-y-auto p-5 outline-none"
                 style={{ backgroundColor: theme.bg }}
               >
-                {/* Cell Render Mode with Mini Previews */}
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-mono uppercase tracking-wider font-semibold" style={{ color: theme.textSecondary }}>
-                      Cell Geometry & Rendering Style
-                    </span>
-                    <span className="text-[11px]" style={{ color: theme.textSecondary }}>
-                      Select visual representation
-                    </span>
-                  </div>
+                <section>
+                  <SectionHeading
+                    title="Cell rendering"
+                    description="Choose how living cells appear"
+                    muted={muted}
+                  />
 
-                  <div className="grid grid-cols-2 gap-3">
-                    {[
-                      {
-                        id: 'square',
-                        label: 'Classic Square',
-                        desc: 'Crisp pixel-precise geometric squares',
-                        preview: (
-                          <div className="flex gap-1 p-1.5 rounded bg-black/40 border border-white/5">
-                            <div className="w-3 h-3" style={{ backgroundColor: theme.cellColor }} />
-                            <div className="w-3 h-3" style={{ backgroundColor: theme.cellColor }} />
-                            <div className="w-3 h-3" style={{ backgroundColor: theme.cellColor }} />
-                          </div>
-                        ),
-                      },
-                      {
-                        id: 'rounded',
-                        label: 'Rounded Squircle',
-                        desc: 'Modern softened squircle cell edges',
-                        preview: (
-                          <div className="flex gap-1 p-1.5 rounded bg-black/40 border border-white/5">
-                            <div className="w-3 h-3 rounded-[3px]" style={{ backgroundColor: theme.cellColor }} />
-                            <div className="w-3 h-3 rounded-[3px]" style={{ backgroundColor: theme.cellColor }} />
-                            <div className="w-3 h-3 rounded-[3px]" style={{ backgroundColor: theme.cellColor }} />
-                          </div>
-                        ),
-                      },
-                      {
-                        id: 'dots',
-                        label: 'Dot Matrix',
-                        desc: 'Circular micro-dot matrix array',
-                        preview: (
-                          <div className="flex gap-1 p-1.5 rounded bg-black/40 border border-white/5">
-                            <div className="w-3 h-3 rounded-full" style={{ backgroundColor: theme.cellColor }} />
-                            <div className="w-3 h-3 rounded-full" style={{ backgroundColor: theme.cellColor }} />
-                            <div className="w-3 h-3 rounded-full" style={{ backgroundColor: theme.cellColor }} />
-                          </div>
-                        ),
-                      },
-                      {
-                        id: 'heatmap',
-                        label: 'Age Heatmap',
-                        desc: 'Dynamic color shift based on cell longevity',
-                        preview: (
-                          <div className="flex gap-1 p-1.5 rounded bg-black/40 border border-white/5">
-                            <div className="w-3 h-3 rounded-[1px]" style={{ backgroundColor: theme.cellNewColor }} title="Newborn" />
-                            <div className="w-3 h-3 rounded-[1px]" style={{ backgroundColor: theme.cellColor }} title="Mature" />
-                            <div className="w-3 h-3 rounded-[1px]" style={{ backgroundColor: theme.cellOldColor }} title="Veteran" />
-                          </div>
-                        ),
-                      },
-                    ].map((mode) => {
-                      const isSelected = cellStyle === mode.id;
+                  <div className="grid grid-cols-2 gap-2">
+                    {cellModes.map((mode) => {
+                      const selected = cellStyle === mode.id;
+
                       return (
                         <button
                           key={mode.id}
-                          onClick={() => onSelectCellStyle(mode.id as CellStyle)}
-                          className="p-3.5 rounded-xl border text-left transition-all flex flex-col justify-between group"
+                          type="button"
+                          onClick={() => onSelectCellStyle(mode.id)}
+                          aria-pressed={selected}
+                          className="flex min-h-[76px] items-center justify-between gap-3 border px-3 py-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-1"
                           style={{
-                            backgroundColor: isSelected ? (theme.elevatedBg || `${theme.accentColor}20`) : theme.panelBg,
-                            borderColor: isSelected ? theme.accentColor : (theme.borderSubtleColor || theme.borderColor),
-                            color: theme.textPrimary,
-                            boxShadow: isSelected ? `0 0 0 1px ${theme.accentColor}40` : 'none',
-                          }}
+                            backgroundColor: selected ? selectedBg : theme.panelBg,
+                            borderColor: selected ? theme.accentColor : border,
+                            '--tw-ring-color': theme.accentColor,
+                          } as React.CSSProperties}
                         >
-                          <div className="flex items-start justify-between w-full mb-3">
-                            <div>
-                              <div className="font-semibold text-xs flex items-center space-x-1.5">
-                                <span>{mode.label}</span>
-                                {isSelected && (
-                                  <Check className="w-3.5 h-3.5" style={{ color: theme.accentColor }} />
-                                )}
-                              </div>
-                              <p className="text-[11px] mt-1 leading-snug" style={{ color: theme.textSecondary }}>
-                                {mode.desc}
-                              </p>
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-1.5 text-xs font-medium">
+                              <span>{mode.label}</span>
+                              {selected && (
+                                <Check
+                                  size={13}
+                                  style={{ color: theme.accentColor }}
+                                />
+                              )}
                             </div>
+                            <p
+                              className="mt-1 text-[11px]"
+                              style={{ color: muted }}
+                            >
+                              {mode.description}
+                            </p>
                           </div>
-                          <div className="flex justify-end">{mode.preview}</div>
+
+                          <div
+                            className="flex h-9 w-[66px] shrink-0 items-center justify-center border"
+                            style={{
+                              backgroundColor: theme.bg,
+                              borderColor: border,
+                            }}
+                          >
+                            {mode.preview}
+                          </div>
                         </button>
                       );
                     })}
                   </div>
-                </div>
+                </section>
 
-                {/* Grid Lines Toggle */}
-                <div
-                  onClick={onToggleGridLines}
-                  className="flex items-center justify-between p-4 rounded-xl border cursor-pointer transition-colors"
-                  style={{
-                    backgroundColor: theme.panelBg,
-                    borderColor: theme.borderSubtleColor || theme.borderColor,
-                  }}
-                >
-                  <div className="flex items-center space-x-3">
-                    <div
-                      className="p-2 rounded-lg border"
-                      style={{
-                        backgroundColor: theme.elevatedBg,
-                        borderColor: theme.borderColor,
-                        color: theme.accentColor,
-                      }}
-                    >
-                      <Box className="w-4 h-4" />
-                    </div>
-                    <div>
-                      <div className="font-semibold text-xs">Grid Matrix Lines</div>
-                      <div className="text-[11px] mt-0.5" style={{ color: theme.textSecondary }}>
-                        Subtle matrix boundary lines separating adjacent cells
-                      </div>
-                    </div>
-                  </div>
-                  <div
-                    className="w-10 h-6 rounded-full transition-colors flex items-center px-0.5"
-                    style={{
-                      backgroundColor: showGridLines ? theme.accentColor : (theme.elevatedBg || '#333333'),
-                    }}
-                  >
-                    <div
-                      className={`w-5 h-5 rounded-full transition-transform ${
-                        showGridLines ? 'translate-x-4' : 'translate-x-0'
-                      }`}
-                      style={{
-                        backgroundColor: showGridLines
-                          ? (theme.isLight ? '#FFFFFF' : '#0B0F0D')
-                          : '#FFFFFF',
-                      }}
-                    />
-                  </div>
-                </div>
+                <section className="space-y-2">
+                  <SectionHeading
+                    title="Canvas"
+                    muted={muted}
+                  />
+
+                  <SettingRow
+                    icon={Box}
+                    title="Grid lines"
+                    description="Show boundaries between cells"
+                    enabled={showGridLines}
+                    onToggle={onToggleGridLines}
+                    theme={theme}
+                    text={text}
+                    muted={muted}
+                  />
+                </section>
               </Tabs.Content>
 
-              {/* Tab 2: Rules & Physics */}
+              {/* RULES TAB */}
               <Tabs.Content
                 value="physics"
-                className="p-6 space-y-6 overflow-y-auto flex-1 outline-none"
+                className="min-h-0 flex-1 space-y-6 overflow-y-auto p-5 outline-none"
                 style={{ backgroundColor: theme.bg }}
               >
-                {/* Cellular Automata Rule Set */}
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-mono uppercase tracking-wider font-semibold" style={{ color: theme.textSecondary }}>
-                      Automaton Evolution Rules
-                    </span>
-                    <span className="text-[11px] font-mono" style={{ color: theme.accentColor }}>
-                      B = Birth, S = Survival
-                    </span>
-                  </div>
+                <section>
+                  <SectionHeading
+                    title="Evolution rules"
+                    description="Select the automaton rule set"
+                    muted={muted}
+                  />
 
-                  <div className="space-y-2">
-                    {RULESETS.map((r) => {
-                      const isSelected = currentRule.id === r.id;
+                  <div className="space-y-1.5">
+                    {RULESETS.map((rule) => {
+                      const selected = currentRule.id === rule.id;
+
                       return (
                         <button
-                          key={r.id}
-                          onClick={() => onSelectRule(r)}
-                          className="w-full p-3.5 rounded-xl border text-left transition-colors flex items-start justify-between group"
+                          key={rule.id}
+                          type="button"
+                          onClick={() => onSelectRule(rule)}
+                          aria-pressed={selected}
+                          className="flex w-full items-center justify-between gap-3 border px-3.5 py-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-1"
                           style={{
-                            backgroundColor: isSelected ? (theme.elevatedBg || `${theme.accentColor}20`) : theme.panelBg,
-                            borderColor: isSelected ? theme.accentColor : (theme.borderSubtleColor || theme.borderColor),
-                            color: theme.textPrimary,
-                            boxShadow: isSelected ? `0 0 0 1px ${theme.accentColor}40` : 'none',
-                          }}
+                            backgroundColor: selected ? selectedBg : theme.panelBg,
+                            borderColor: selected ? theme.accentColor : border,
+                            '--tw-ring-color': theme.accentColor,
+                          } as React.CSSProperties}
                         >
-                          <div className="pr-4">
-                            <div className="font-semibold text-xs flex items-center space-x-2">
-                              <span>{r.name}</span>
-                              {isSelected && (
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2 text-xs font-medium">
+                              {rule.name}
+                              {selected && (
                                 <span
-                                  className="text-[9px] px-1.5 py-0.2 rounded font-mono font-semibold"
-                                  style={{
-                                    backgroundColor: `${theme.accentColor}30`,
-                                    color: theme.accentColor,
-                                  }}
+                                  className="text-[9px] font-semibold uppercase tracking-wider"
+                                  style={{ color: theme.accentColor }}
                                 >
-                                  ACTIVE
+                                  Active
                                 </span>
                               )}
                             </div>
-                            <div className="text-[11px] mt-1 leading-relaxed" style={{ color: theme.textSecondary }}>
-                              {r.description}
-                            </div>
+                            <p
+                              className="mt-1 text-[11px] leading-relaxed"
+                              style={{ color: muted }}
+                            >
+                              {rule.description}
+                            </p>
                           </div>
-                          <div
-                            className="text-[11px] font-mono px-2 py-1 rounded border flex-shrink-0"
+
+                          <span
+                            className="shrink-0 border px-2 py-1 font-mono text-[11px]"
                             style={{
-                              backgroundColor: theme.elevatedBg,
-                              borderColor: theme.borderSubtleColor || theme.borderColor,
-                              color: theme.textSecondary,
+                              backgroundColor: theme.bg,
+                              borderColor: border,
+                              color: selected ? theme.accentColor : muted,
                             }}
                           >
-                            B{r.birth.join('')}/S{r.survival.join('')}
-                          </div>
+                            B{rule.birth.join('')}/S{rule.survival.join('')}
+                          </span>
                         </button>
                       );
                     })}
                   </div>
-                </div>
+                </section>
 
-                {/* Topology Wrapping */}
-                <div
-                  onClick={onToggleToroidal}
-                  className="flex items-center justify-between p-4 rounded-xl border cursor-pointer transition-colors"
-                  style={{
-                    backgroundColor: theme.panelBg,
-                    borderColor: theme.borderSubtleColor || theme.borderColor,
-                  }}
-                >
-                  <div className="flex items-center space-x-3">
-                    <div
-                      className="p-2 rounded-lg border"
-                      style={{
-                        backgroundColor: theme.elevatedBg,
-                        borderColor: theme.borderColor,
-                        color: theme.accentColor,
-                      }}
-                    >
-                      <Globe className="w-4 h-4" />
-                    </div>
-                    <div>
-                      <div className="font-semibold text-xs">
-                        {toroidal ? 'Toroidal Universe (Edge Wrapping)' : 'Bounded Wall Borders'}
-                      </div>
-                      <div className="text-[11px] mt-0.5" style={{ color: theme.textSecondary }}>
-                        {toroidal
-                          ? 'Gliders and spaceships wrap across opposite borders indefinitely'
-                          : 'Cells collide with borders and die from crowding'}
-                      </div>
-                    </div>
-                  </div>
-                  <div
-                    className="w-10 h-6 rounded-full transition-colors flex items-center px-0.5"
-                    style={{
-                      backgroundColor: toroidal ? theme.accentColor : (theme.elevatedBg || '#333333'),
-                    }}
-                  >
-                    <div
-                      className={`w-5 h-5 rounded-full transition-transform ${
-                        toroidal ? 'translate-x-4' : 'translate-x-0'
-                      }`}
-                      style={{
-                        backgroundColor: toroidal
-                          ? (theme.isLight ? '#FFFFFF' : '#0B0F0D')
-                          : '#FFFFFF',
-                      }}
-                    />
-                  </div>
-                </div>
+                <section className="space-y-2">
+                  <SectionHeading title="World topology" muted={muted} />
+
+                  <SettingRow
+                    icon={Globe}
+                    title="Toroidal wrapping"
+                    description={
+                      toroidal
+                        ? 'Cells reappear at the opposite edge'
+                        : 'Cells stop at the grid boundaries'
+                    }
+                    enabled={toroidal}
+                    onToggle={onToggleToroidal}
+                    theme={theme}
+                    text={text}
+                    muted={muted}
+                  />
+                </section>
               </Tabs.Content>
 
-              {/* Tab 3: Dimensions & Audio */}
+              {/* UNIVERSE TAB */}
               <Tabs.Content
                 value="universe"
-                className="p-6 space-y-6 overflow-y-auto flex-1 outline-none"
+                className="min-h-0 flex-1 space-y-6 overflow-y-auto p-5 outline-none"
                 style={{ backgroundColor: theme.bg }}
               >
-                {/* Universe Dimensions */}
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-mono uppercase tracking-wider font-semibold" style={{ color: theme.textSecondary }}>
-                      Universe Grid Dimensions
-                    </span>
-                    <span className="text-[11px]" style={{ color: theme.textSecondary }}>
-                      Active: {gridWidth}×{gridHeight}
-                    </span>
-                  </div>
+                <section>
+                  <SectionHeading
+                    title="Grid dimensions"
+                    description={`Current: ${gridWidth} × ${gridHeight}`}
+                    muted={muted}
+                  />
 
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-2 gap-2">
                     {GRID_SIZES.map((size) => {
-                      const isSelected = gridWidth === size.w && gridHeight === size.h;
+                      const selected =
+                        gridWidth === size.w && gridHeight === size.h;
+
                       return (
                         <button
                           key={size.label}
+                          type="button"
                           onClick={() => onResizeGrid(size.w, size.h)}
-                          className="p-3.5 rounded-xl border text-left transition-colors flex flex-col justify-between"
+                          aria-pressed={selected}
+                          className="flex items-center justify-between border px-3.5 py-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-1"
                           style={{
-                            backgroundColor: isSelected ? (theme.elevatedBg || `${theme.accentColor}20`) : theme.panelBg,
-                            borderColor: isSelected ? theme.accentColor : (theme.borderSubtleColor || theme.borderColor),
-                            color: theme.textPrimary,
-                            boxShadow: isSelected ? `0 0 0 1px ${theme.accentColor}40` : 'none',
-                          }}
+                            backgroundColor: selected ? selectedBg : theme.panelBg,
+                            borderColor: selected ? theme.accentColor : border,
+                            '--tw-ring-color': theme.accentColor,
+                          } as React.CSSProperties}
                         >
-                          <div className="flex items-center justify-between mb-2">
-                            <span className="font-semibold text-xs flex items-center space-x-1.5">
-                              <span>{size.label}</span>
-                              {isSelected && <Check className="w-3.5 h-3.5" style={{ color: theme.accentColor }} />}
-                            </span>
-                            <span className="text-[10px] font-mono px-1.5 py-0.5 rounded border" style={{ backgroundColor: theme.elevatedBg, borderColor: theme.borderSubtleColor || theme.borderColor, color: theme.textSecondary }}>
-                              {size.w}×{size.h}
-                            </span>
+                          <div>
+                            <div className="flex items-center gap-1.5 text-xs font-medium">
+                              {size.label}
+                              {selected && (
+                                <Check
+                                  size={13}
+                                  style={{ color: theme.accentColor }}
+                                />
+                              )}
+                            </div>
+                            <p
+                              className="mt-1 text-[11px]"
+                              style={{ color: muted }}
+                            >
+                              {size.desc}
+                            </p>
                           </div>
-                          <div className="text-[11px] leading-snug" style={{ color: theme.textSecondary }}>
-                            {size.desc}
-                          </div>
+
+                          <span
+                            className="font-mono text-[10px]"
+                            style={{ color: muted }}
+                          >
+                            {size.w}×{size.h}
+                          </span>
                         </button>
                       );
                     })}
                   </div>
-                </div>
+                </section>
 
-                {/* Generative Audio Synthesis */}
-                <div
-                  onClick={onToggleSound}
-                  className="flex items-center justify-between p-4 rounded-xl border cursor-pointer transition-colors"
-                  style={{
-                    backgroundColor: theme.panelBg,
-                    borderColor: theme.borderSubtleColor || theme.borderColor,
-                  }}
-                >
-                  <div className="flex items-center space-x-3">
-                    <div
-                      className="p-2 rounded-lg border"
-                      style={{
-                        backgroundColor: theme.elevatedBg,
-                        borderColor: theme.borderColor,
-                        color: theme.accentColor,
-                      }}
-                    >
-                      <Volume2 className="w-4 h-4" />
-                    </div>
-                    <div>
-                      <div className="font-semibold text-xs">Ambient Pentatonic Chimes</div>
-                      <div className="text-[11px] mt-0.5" style={{ color: theme.textSecondary }}>
-                        Harmonic audio synthesis triggered on cellular birth and tick transitions
-                      </div>
-                    </div>
-                  </div>
-                  <div
-                    className="w-10 h-6 rounded-full transition-colors flex items-center px-0.5"
-                    style={{
-                      backgroundColor: soundEnabled ? theme.accentColor : (theme.elevatedBg || '#333333'),
-                    }}
-                  >
-                    <div
-                      className={`w-5 h-5 rounded-full transition-transform ${
-                        soundEnabled ? 'translate-x-4' : 'translate-x-0'
-                      }`}
-                      style={{
-                        backgroundColor: soundEnabled
-                          ? (theme.isLight ? '#FFFFFF' : '#0B0F0D')
-                          : '#FFFFFF',
-                      }}
-                    />
-                  </div>
-                </div>
+                <section className="space-y-2">
+                  <SectionHeading title="Audio" muted={muted} />
+
+                  <SettingRow
+                    icon={Volume2}
+                    title="Ambient audio"
+                    description="Play tones during simulation events"
+                    enabled={soundEnabled}
+                    onToggle={onToggleSound}
+                    theme={theme}
+                    text={text}
+                    muted={muted}
+                  />
+                </section>
               </Tabs.Content>
             </Tabs.Root>
 
             {/* Footer */}
             <div
-              className="px-6 py-3.5 border-t flex justify-end transition-colors"
+              className="flex shrink-0 items-center justify-between border-t px-5 py-3"
               style={{
                 backgroundColor: theme.panelBg,
-                borderColor: theme.borderColor,
+                borderColor: border,
               }}
             >
+              <span className="text-[10px]" style={{ color: muted }}>
+                Changes apply immediately
+              </span>
+
               <Dialog.Close asChild>
                 <button
-                  className="px-4 py-2 rounded-lg text-xs font-semibold shadow-sm transition-opacity hover:opacity-90 font-mono tracking-wide"
+                  type="button"
+                  className="px-4 py-2 text-xs font-medium transition-opacity hover:opacity-80 focus-visible:outline-none focus-visible:ring-2"
                   style={{
                     backgroundColor: theme.accentColor,
-                    color: theme.isLight ? '#FFFFFF' : '#0B0F0D',
-                  }}
+                    color: theme.isLight ? '#FFFFFF' : '#11170E',
+                    '--tw-ring-color': theme.accentColor,
+                  } as React.CSSProperties}
                 >
-                  SAVE & CLOSE
+                  Done
                 </button>
               </Dialog.Close>
             </div>

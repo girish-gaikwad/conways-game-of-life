@@ -1,3 +1,4 @@
+
 import React from 'react';
 import {
   Play,
@@ -62,29 +63,79 @@ export const ControlToolbar: React.FC<ControlToolbarProps> = ({
   onClear,
   theme,
 }) => {
-  const dividerStyle = {
-    backgroundColor: theme.borderSubtleColor || theme.borderColor || 'rgba(255,255,255,0.1)',
+  const isLight = Boolean(theme.isLight);
+
+  const colors = {
+    background: theme.panelBg,
+    surface: theme.bg,
+    border: theme.gridLineColor,
+    text: isLight ? '#202820' : '#E5EAE5',
+    muted: isLight ? '#69736B' : '#929D95',
+    accent: theme.accentColor,
+    danger: '#E16D6D',
+    primaryText: isLight ? '#FFFFFF' : '#101510',
+  };
+
+  const dividerStyle: React.CSSProperties = {
+    backgroundColor: colors.border,
+  };
+
+  const iconButtonClass =
+    'flex h-8 w-8 shrink-0 items-center justify-center transition-colors hover:opacity-70 focus-visible:outline-none focus-visible:ring-1 disabled:cursor-not-allowed disabled:opacity-30';
+
+  const renderToolButton = (
+    tool: ToolType,
+    label: string,
+    shortcut: string,
+    Icon: React.ElementType
+  ) => {
+    const active = activeTool === tool;
+
+    return (
+      <Tooltip content={label} shortcut={shortcut}>
+        <button
+          type="button"
+          onClick={() => onSelectTool(tool)}
+          aria-label={label}
+          aria-pressed={active}
+          className="flex h-8 w-8 items-center justify-center border transition-colors focus-visible:outline-none focus-visible:ring-1"
+          style={{
+            backgroundColor: active
+              ? `${colors.accent}18`
+              : 'transparent',
+            borderColor: active ? colors.accent : 'transparent',
+            color: active ? colors.accent : colors.muted,
+          }}
+        >
+          <Icon size={15} strokeWidth={1.8} />
+        </button>
+      </Tooltip>
+    );
   };
 
   return (
-    <div className="fixed bottom-4 left-1/2 z-30 flex max-w-[calc(100vw-24px)] -translate-x-1/2 flex-col items-center gap-1.5 select-none font-sans">
-      {/* Pattern Stamping Context Ribbon */}
+    <div className="fixed bottom-4 left-1/2 z-30 flex max-w-[calc(100vw-16px)] -translate-x-1/2 flex-col items-center gap-1.5 select-none font-sans">
+
+      {/* Pattern placement context */}
       {selectedPattern && (
         <div
-          className="flex max-w-full items-center gap-3 border px-3 py-1.5 text-xs shadow-lg animate-fadeIn rounded"
+          className="flex max-w-full items-center gap-3 border px-3 py-2 text-xs animate-fadeIn"
           style={{
-            backgroundColor: theme.elevatedBg || theme.panelBg,
-            borderColor: theme.accentColor,
-            color: theme.textPrimary,
+            backgroundColor: colors.background,
+            borderColor: colors.accent,
+            color: colors.text,
           }}
         >
           <span
-            className="h-2 w-2 shrink-0 rounded-full animate-pulse"
-            style={{ backgroundColor: theme.accentColor }}
+            className="h-1.5 w-1.5 shrink-0"
+            style={{ backgroundColor: colors.accent }}
           />
 
-          <span style={{ color: theme.textSecondary }}>Placing</span>
-          <span className="max-w-[150px] truncate font-semibold" style={{ color: theme.textPrimary }}>
+          <span style={{ color: colors.muted }}>
+            Placing
+          </span>
+
+          <span className="max-w-[150px] truncate font-semibold">
             {selectedPattern.name}
           </span>
 
@@ -92,9 +143,10 @@ export const ControlToolbar: React.FC<ControlToolbarProps> = ({
 
           <Tooltip content="Rotate pattern 90° clockwise" shortcut="R">
             <button
+              type="button"
               onClick={onRotatePattern}
-              className="flex items-center gap-1.5 font-medium transition-opacity hover:opacity-80"
-              style={{ color: theme.accentColor }}
+              className="flex items-center gap-1.5 font-medium transition-opacity hover:opacity-70"
+              style={{ color: colors.accent }}
             >
               <RotateCw size={13} />
               <span>Rotate</span>
@@ -104,10 +156,11 @@ export const ControlToolbar: React.FC<ControlToolbarProps> = ({
           {onClearSelectedPattern && (
             <Tooltip content="Cancel placement" shortcut="Esc / D">
               <button
+                type="button"
                 onClick={onClearSelectedPattern}
                 aria-label="Cancel pattern placement"
-                className="ml-1 transition-colors hover:text-[#E16D6D]"
-                style={{ color: theme.textSecondary }}
+                className="ml-1 transition-colors hover:opacity-60"
+                style={{ color: colors.muted }}
               >
                 <X size={14} />
               </button>
@@ -116,60 +169,72 @@ export const ControlToolbar: React.FC<ControlToolbarProps> = ({
         </div>
       )}
 
-      {/* Main Control Strip HUD */}
+      {/* Main control dock */}
       <div
-        className="flex max-w-full items-center gap-1 overflow-x-auto border px-2 py-1.5 shadow-2xl rounded-md transition-colors duration-200 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        className="flex max-w-full items-center gap-1 overflow-x-auto border px-2 py-1.5 shadow-xl transition-colors duration-200 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
         style={{
-          backgroundColor: theme.panelBg,
-          borderColor: theme.borderColor,
-          color: theme.textPrimary,
+          backgroundColor: colors.background,
+          borderColor: colors.border,
+          color: colors.text,
         }}
       >
-        {/* Playback Controls */}
-        <div className="flex shrink-0 items-center">
-          <Tooltip content="Step backward 1 generation" shortcut="← or B">
+        {/* Playback */}
+        <div className="flex shrink-0 items-center gap-0.5">
+          <Tooltip content="Step backward one generation" shortcut="← or B">
             <button
+              type="button"
               onClick={onStepBackward}
               disabled={!canStepBack}
               aria-label="Step backward"
-              className="flex h-8 w-8 items-center justify-center rounded transition-colors disabled:cursor-not-allowed disabled:opacity-30 hover:opacity-80"
-              style={{ color: theme.textSecondary }}
+              className={iconButtonClass}
+              style={{ color: colors.muted }}
             >
               <SkipBack size={15} />
             </button>
           </Tooltip>
 
-          {/* Primary Play / Pause Button */}
-          <Tooltip content={isRunning ? 'Pause simulation' : 'Start simulation'} shortcut="Space">
+          <Tooltip
+            content={isRunning ? 'Pause simulation' : 'Start simulation'}
+            shortcut="Space"
+          >
             <button
+              type="button"
               onClick={onTogglePlay}
               aria-label={isRunning ? 'Pause' : 'Start'}
-              className="mx-1 flex h-8 items-center gap-1.5 px-3 rounded text-xs font-semibold tracking-wide shadow-sm transition-transform active:scale-95"
+              aria-pressed={isRunning}
+              className="mx-1 flex h-8 items-center gap-1.5 px-3 text-xs font-semibold tracking-wide transition-opacity hover:opacity-85 active:opacity-70"
               style={{
-                backgroundColor: isRunning ? '#E16D6D' : theme.accentColor,
-                color: isRunning ? '#FFFFFF' : (theme.isLight ? '#FFFFFF' : '#0B0F0D'),
+                backgroundColor: isRunning
+                  ? colors.danger
+                  : colors.accent,
+                color: '#FFFFFF',
               }}
             >
               {isRunning ? (
                 <>
                   <Pause size={14} fill="currentColor" />
-                  <span className="font-mono text-[11px] tracking-wider uppercase">PAUSE</span>
+                  <span className="font-mono text-[11px] uppercase tracking-wider">
+                    Pause
+                  </span>
                 </>
               ) : (
                 <>
-                  <Play size={14} fill="currentColor" className="ml-0.5" />
-                  <span className="font-mono text-[11px] tracking-wider uppercase">RUN</span>
+                  <Play size={14} fill="currentColor" />
+                  <span className="font-mono text-[11px] uppercase tracking-wider">
+                    Run
+                  </span>
                 </>
               )}
             </button>
           </Tooltip>
 
-          <Tooltip content="Step forward 1 generation" shortcut="→ or N">
+          <Tooltip content="Step forward one generation" shortcut="→ or N">
             <button
+              type="button"
               onClick={onStepForward}
               aria-label="Step forward"
-              className="flex h-8 w-8 items-center justify-center rounded transition-colors hover:opacity-80"
-              style={{ color: theme.textSecondary }}
+              className={iconButtonClass}
+              style={{ color: colors.muted }}
             >
               <SkipForward size={15} />
             </button>
@@ -178,21 +243,25 @@ export const ControlToolbar: React.FC<ControlToolbarProps> = ({
 
         <div className="mx-1.5 h-6 w-px shrink-0" style={dividerStyle} />
 
-        {/* Speed Selector */}
+        {/* Speed presets */}
         <div className="flex shrink-0 items-center gap-0.5">
           {SPEED_PRESETS.map((preset) => {
-            const isActive = speedMultiplier === preset.value;
+            const active = speedMultiplier === preset.value;
+
             return (
               <Tooltip key={preset.value} content={preset.title}>
                 <button
+                  type="button"
                   onClick={() => onSpeedChange(preset.value)}
-                  className="flex h-7 min-w-[28px] items-center justify-center px-1.5 text-[11px] font-mono rounded transition-colors"
+                  aria-label={`Set speed to ${preset.label}`}
+                  aria-pressed={active}
+                  className="flex h-7 min-w-[29px] items-center justify-center px-1.5 font-mono text-[11px] transition-colors"
                   style={{
-                    backgroundColor: isActive ? theme.accentColor : 'transparent',
-                    color: isActive
-                      ? (theme.isLight ? '#FFFFFF' : '#0B0F0D')
-                      : theme.textSecondary,
-                    fontWeight: isActive ? 700 : 400,
+                    backgroundColor: active
+                      ? colors.accent
+                      : 'transparent',
+                    color: active ? '#FFFFFF' : colors.muted,
+                    fontWeight: active ? 700 : 400,
                   }}
                 >
                   {preset.label}
@@ -204,96 +273,55 @@ export const ControlToolbar: React.FC<ControlToolbarProps> = ({
 
         <div className="mx-1.5 h-6 w-px shrink-0" style={dividerStyle} />
 
-        {/* Tools: Draw, Erase, Pan */}
+        {/* Drawing tools */}
         <div className="flex shrink-0 items-center gap-0.5">
-          <Tooltip content="Draw cells" shortcut="D">
-            <button
-              onClick={() => onSelectTool('draw')}
-              aria-label="Draw"
-              className="flex h-8 w-8 items-center justify-center rounded transition-colors"
-              style={{
-                backgroundColor: activeTool === 'draw' ? (theme.elevatedBg || `${theme.accentColor}25`) : 'transparent',
-                color: activeTool === 'draw' ? theme.accentColor : theme.textSecondary,
-                borderColor: activeTool === 'draw' ? theme.borderColor : 'transparent',
-                borderWidth: 1,
-              }}
-            >
-              <Pencil size={15} />
-            </button>
-          </Tooltip>
-
-          <Tooltip content="Erase cells" shortcut="E">
-            <button
-              onClick={() => onSelectTool('erase')}
-              aria-label="Erase"
-              className="flex h-8 w-8 items-center justify-center rounded transition-colors"
-              style={{
-                backgroundColor: activeTool === 'erase' ? (theme.elevatedBg || `${theme.accentColor}25`) : 'transparent',
-                color: activeTool === 'erase' ? theme.accentColor : theme.textSecondary,
-                borderColor: activeTool === 'erase' ? theme.borderColor : 'transparent',
-                borderWidth: 1,
-              }}
-            >
-              <Eraser size={15} />
-            </button>
-          </Tooltip>
-
-          <Tooltip content="Pan canvas" shortcut="H / Shift+Drag">
-            <button
-              onClick={() => onSelectTool('pan')}
-              aria-label="Pan"
-              className="flex h-8 w-8 items-center justify-center rounded transition-colors"
-              style={{
-                backgroundColor: activeTool === 'pan' ? (theme.elevatedBg || `${theme.accentColor}25`) : 'transparent',
-                color: activeTool === 'pan' ? theme.accentColor : theme.textSecondary,
-                borderColor: activeTool === 'pan' ? theme.borderColor : 'transparent',
-                borderWidth: 1,
-              }}
-            >
-              <Hand size={15} />
-            </button>
-          </Tooltip>
+          {renderToolButton('draw', 'Draw cells', 'D', Pencil)}
+          {renderToolButton('erase', 'Erase cells', 'E', Eraser)}
+          {renderToolButton('pan', 'Pan canvas', 'H / Shift+Drag', Hand)}
         </div>
 
         <div className="mx-1.5 h-6 w-px shrink-0" style={dividerStyle} />
 
-        {/* Pattern Catalog Button */}
+        {/* Pattern explorer */}
         <Tooltip content="Pattern Explorer" shortcut="P">
           <button
+            type="button"
             onClick={onOpenPatternCatalog}
-            className="flex h-8 shrink-0 items-center gap-1.5 px-2.5 rounded text-xs font-medium border transition-colors outline-none"
+            className="flex h-8 shrink-0 items-center gap-1.5 border px-2.5 text-xs font-medium transition-colors hover:opacity-75"
             style={{
-              backgroundColor: theme.elevatedBg || 'transparent',
-              borderColor: theme.borderColor,
-              color: theme.textPrimary,
+              backgroundColor: colors.surface,
+              borderColor: colors.border,
+              color: colors.text,
             }}
           >
-            <Library size={14} style={{ color: theme.accentColor }} />
-            <span className="font-sans">Patterns</span>
+            <Library size={14} style={{ color: colors.accent }} />
+            <span>Patterns</span>
           </button>
         </Tooltip>
 
         <div className="mx-1.5 h-6 w-px shrink-0" style={dividerStyle} />
 
-        {/* World Actions: Randomize & Clear */}
+        {/* Universe actions */}
         <div className="flex shrink-0 items-center gap-0.5">
-          <Tooltip content="Random soup" shortcut="S">
+          <Tooltip content="Generate random universe" shortcut="S">
             <button
+              type="button"
               onClick={() => onRandomize()}
-              aria-label="Randomize"
-              className="flex h-8 w-8 items-center justify-center rounded transition-colors hover:opacity-80"
-              style={{ color: theme.accentColor }}
+              aria-label="Randomize universe"
+              className={iconButtonClass}
+              style={{ color: colors.accent }}
             >
               <Sparkles size={15} />
             </button>
           </Tooltip>
 
-          <Tooltip content="Clear universe" shortcut="C">
+          <Tooltip content="Clear entire universe" shortcut="C">
             <button
+              type="button"
               onClick={onClear}
-              aria-label="Clear"
-              className="flex h-8 w-8 items-center justify-center rounded transition-colors hover:text-[#E16D6D] hover:bg-[#E16D6D]15"
-              style={{ color: theme.textSecondary }}
+              aria-label="Clear universe"
+              className={iconButtonClass}
+              style={{ color: colors.muted }}
             >
               <Trash2 size={15} />
             </button>

@@ -1,5 +1,12 @@
+
 import React from 'react';
-import { X, BookOpen, HeartPulse, Skull, UserPlus } from 'lucide-react';
+import {
+  X,
+  BookOpen,
+  HeartPulse,
+  Skull,
+  UserPlus,
+} from 'lucide-react';
 import * as Dialog from '@radix-ui/react-dialog';
 import { Theme } from '../types/game';
 
@@ -9,215 +16,304 @@ interface RulesModalProps {
   theme: Theme;
 }
 
-export const RulesModal: React.FC<RulesModalProps> = ({ isOpen, onClose, theme }) => {
+const RULES = [
+  {
+    number: '01',
+    title: 'Underpopulation',
+    category: 'DEATH',
+    description:
+      'A living cell with fewer than two living neighbours dies.',
+    condition: '< 2',
+    result: 'Cell dies',
+    icon: Skull,
+    color: '#E07878',
+  },
+  {
+    number: '02',
+    title: 'Survival',
+    category: 'SURVIVAL',
+    description:
+      'A living cell with two or three living neighbours survives.',
+    condition: '2 – 3',
+    result: 'Cell lives',
+    icon: HeartPulse,
+    color: '#72BFA0',
+  },
+  {
+    number: '03',
+    title: 'Overpopulation',
+    category: 'DEATH',
+    description:
+      'A living cell with more than three living neighbours dies.',
+    condition: '> 3',
+    result: 'Cell dies',
+    icon: Skull,
+    color: '#E07878',
+  },
+  {
+    number: '04',
+    title: 'Reproduction',
+    category: 'BIRTH',
+    description:
+      'A dead cell with exactly three living neighbours becomes alive.',
+    condition: '= 3',
+    result: 'Cell is born',
+    icon: UserPlus,
+    color: '#A6D96A',
+  },
+];
+
+export const RulesModal: React.FC<RulesModalProps> = ({
+  isOpen,
+  onClose,
+  theme,
+}) => {
+  const text = theme.isLight ? '#202820' : '#E5EAE5';
+  const muted = theme.isLight ? '#68736A' : '#929D94';
+  const border = theme.gridLineColor;
+
   return (
-    <Dialog.Root open={isOpen} onOpenChange={(open) => !open && onClose()}>
+    <Dialog.Root
+      open={isOpen}
+      onOpenChange={(open) => !open && onClose()}
+    >
       <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm animate-fadeIn" />
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 pointer-events-none">
+        <Dialog.Overlay className="fixed inset-0 z-50 bg-black/70 backdrop-blur-[2px] animate-fadeIn" />
+
+        <div className="pointer-events-none fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6">
           <Dialog.Content
-            className="pointer-events-auto relative w-full max-w-xl border rounded-xl shadow-2xl overflow-hidden flex flex-col font-sans outline-none transition-colors max-h-[88vh] animate-fadeIn"
+            className="pointer-events-auto flex max-h-[88vh] w-full max-w-[590px] flex-col overflow-hidden border shadow-2xl outline-none animate-fadeIn"
             style={{
-              backgroundColor: theme.panelBg,
-              borderColor: theme.borderColor,
-              color: theme.textPrimary,
+              backgroundColor: theme.bg,
+              borderColor: border,
+              color: text,
             }}
           >
             {/* Header */}
             <div
-              className="flex items-center justify-between px-6 py-4 border-b transition-colors"
+              className="flex shrink-0 items-center justify-between border-b px-5 py-4"
               style={{
                 backgroundColor: theme.panelBg,
-                borderColor: theme.borderColor,
+                borderColor: border,
               }}
             >
-              <div className="flex items-center space-x-3">
-                <div
-                  className="p-1.5 rounded-lg border"
-                  style={{
-                    backgroundColor: theme.elevatedBg,
-                    borderColor: theme.borderColor,
-                    color: theme.accentColor,
-                  }}
-                >
-                  <BookOpen className="w-4 h-4" />
-                </div>
+              <div className="flex items-center gap-3">
+                <BookOpen
+                  size={19}
+                  strokeWidth={1.6}
+                  style={{ color: theme.accentColor }}
+                />
+
                 <div>
-                  <Dialog.Title className="text-sm font-semibold tracking-wider font-mono uppercase">
-                    THE FOUR LAWS OF CELLULAR LIFE
+                  <Dialog.Title className="text-[13px] font-semibold tracking-wide">
+                    Game rules
                   </Dialog.Title>
+
                   <Dialog.Description
-                    className="text-xs mt-0.5"
-                    style={{ color: theme.textSecondary }}
+                    className="mt-0.5 text-[11px]"
+                    style={{ color: muted }}
                   >
-                    John Horton Conway's deterministic 1970 automaton rules
+                    Conway's Game of Life · 1970
                   </Dialog.Description>
                 </div>
               </div>
+
               <Dialog.Close asChild>
                 <button
-                  className="p-1.5 rounded-lg transition-colors hover:opacity-70"
-                  style={{ color: theme.textSecondary }}
+                  type="button"
+                  aria-label="Close rules"
+                  className="flex h-8 w-8 items-center justify-center transition-colors hover:bg-white/[0.07]"
+                  style={{ color: muted }}
                 >
-                  <X className="w-4 h-4" />
+                  <X size={17} />
                 </button>
               </Dialog.Close>
             </div>
 
-            {/* Content Body */}
+            {/* Content */}
             <div
-              className="p-6 space-y-5 max-h-[75vh] overflow-y-auto text-xs transition-colors"
-              style={{
-                backgroundColor: theme.bg,
-                color: theme.textPrimary,
-              }}
+              className="min-h-0 flex-1 space-y-5 overflow-y-auto p-5"
+              style={{ backgroundColor: theme.bg }}
             >
-              <div
-                className="p-3.5 rounded-xl border text-xs leading-relaxed"
-                style={{
-                  backgroundColor: theme.panelBg,
-                  borderColor: theme.borderSubtleColor || theme.borderColor,
-                  color: theme.textSecondary,
-                }}
+              {/* Introduction */}
+              <div className="flex gap-3 border-l-2 py-1 pl-3.5"
+                style={{ borderColor: theme.accentColor }}
               >
-                Every cell in the matrix interacts with its eight horizontal, vertical, and diagonal neighbors. At each discrete tick, the entire universe evolves synchronously:
+                <div>
+                  <p className="text-xs leading-relaxed" style={{ color: text }}>
+                    Every cell interacts with its eight neighbouring cells.
+                    At each generation, all cells update simultaneously
+                    according to four simple rules.
+                  </p>
+                  <p
+                    className="mt-2 font-mono text-[10px]"
+                    style={{ color: muted }}
+                  >
+                    8 NEIGHBOURS · 1 GENERATION · 4 RULES
+                  </p>
+                </div>
               </div>
 
-              {/* 4 Clean Visual Law Cards */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                {/* Law 1 */}
-                <div
-                  className="p-4 rounded-xl border flex flex-col justify-between transition-colors space-y-2.5"
-                  style={{
-                    backgroundColor: theme.panelBg,
-                    borderColor: theme.borderSubtleColor || theme.borderColor,
-                  }}
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="font-mono text-[10px] font-semibold text-[#E16D6D] px-2 py-0.5 rounded bg-[#E16D6D]/15 border border-[#E16D6D]/30">
-                      DEATH BY ISOLATION
-                    </span>
-                    <Skull className="w-4 h-4 text-[#E16D6D]" />
-                  </div>
-                  <div>
-                    <h3 className="font-semibold text-xs font-mono">1. Underpopulation</h3>
-                    <p className="text-[11px] mt-1 leading-relaxed" style={{ color: theme.textSecondary }}>
-                      Any living cell with <strong>&lt; 2</strong> living neighbours dies of loneliness.
-                    </p>
-                  </div>
-                  <div className="text-[10px] font-mono opacity-80 pt-1 border-t" style={{ borderColor: theme.borderSubtleColor || theme.borderColor }}>
-                    Neighbors &lt; 2 → Cell dies
-                  </div>
+              {/* Rules */}
+              <section>
+                <div className="mb-3 flex items-center justify-between">
+                  <h3
+                    className="text-[10px] font-semibold uppercase tracking-[0.12em]"
+                    style={{ color: muted }}
+                  >
+                    The four rules
+                  </h3>
+
+                  <span
+                    className="font-mono text-[10px]"
+                    style={{ color: muted }}
+                  >
+                    B3 / S23
+                  </span>
                 </div>
 
-                {/* Law 2 */}
                 <div
-                  className="p-4 rounded-xl border flex flex-col justify-between transition-colors space-y-2.5"
+                  className="grid grid-cols-1 gap-px border sm:grid-cols-2"
                   style={{
-                    backgroundColor: theme.panelBg,
-                    borderColor: theme.borderSubtleColor || theme.borderColor,
+                    backgroundColor: border,
+                    borderColor: border,
                   }}
                 >
-                  <div className="flex items-center justify-between">
-                    <span
-                      className="font-mono text-[10px] font-semibold px-2 py-0.5 rounded border"
-                      style={{
-                        backgroundColor: `${theme.accentColor}18`,
-                        borderColor: `${theme.accentColor}40`,
-                        color: theme.accentColor,
-                      }}
-                    >
-                      SURVIVAL
-                    </span>
-                    <HeartPulse className="w-4 h-4" style={{ color: theme.accentColor }} />
-                  </div>
-                  <div>
-                    <h3 className="font-semibold text-xs font-mono">2. Equilibrium</h3>
-                    <p className="text-[11px] mt-1 leading-relaxed" style={{ color: theme.textSecondary }}>
-                      Any living cell with <strong>2 or 3</strong> living neighbours stays alive.
-                    </p>
-                  </div>
-                  <div className="text-[10px] font-mono opacity-80 pt-1 border-t" style={{ borderColor: theme.borderSubtleColor || theme.borderColor }}>
-                    Neighbors 2 or 3 → Cell lives
-                  </div>
+                  {RULES.map((rule) => {
+                    const Icon = rule.icon;
+
+                    return (
+                      <article
+                        key={rule.number}
+                        className="flex min-h-[145px] flex-col justify-between p-4"
+                        style={{ backgroundColor: theme.panelBg }}
+                      >
+                        <div>
+                          <div className="mb-4 flex items-center justify-between">
+                            <span
+                              className="font-mono text-[11px]"
+                              style={{ color: muted }}
+                            >
+                              {rule.number}
+                            </span>
+
+                            <div className="flex items-center gap-1.5">
+                              <span
+                                className="h-1.5 w-1.5 rounded-full"
+                                style={{ backgroundColor: rule.color }}
+                              />
+                              <span
+                                className="text-[9px] font-semibold tracking-[0.1em]"
+                                style={{ color: rule.color }}
+                              >
+                                {rule.category}
+                              </span>
+                            </div>
+                          </div>
+
+                          <h4 className="text-[13px] font-semibold">
+                            {rule.title}
+                          </h4>
+
+                          <p
+                            className="mt-1.5 text-[11px] leading-relaxed"
+                            style={{ color: muted }}
+                          >
+                            {rule.description}
+                          </p>
+                        </div>
+
+                        <div
+                          className="mt-4 flex items-center justify-between border-t pt-2.5"
+                          style={{ borderColor: border }}
+                        >
+                          <div className="flex items-center gap-2">
+                            <Icon
+                              size={13}
+                              strokeWidth={1.8}
+                              style={{ color: rule.color }}
+                            />
+                            <span
+                              className="text-[10px]"
+                              style={{ color: muted }}
+                            >
+                              Neighbours
+                            </span>
+                            <span
+                              className="font-mono text-xs font-semibold"
+                              style={{ color: text }}
+                            >
+                              {rule.condition}
+                            </span>
+                          </div>
+
+                          <span
+                            className="text-[10px] font-medium"
+                            style={{ color: rule.color }}
+                          >
+                            {rule.result}
+                          </span>
+                        </div>
+                      </article>
+                    );
+                  })}
+                </div>
+              </section>
+
+              {/* Summary */}
+              <div
+                className="flex flex-wrap items-center justify-between gap-3 border px-3.5 py-3"
+                style={{
+                  backgroundColor: theme.panelBg,
+                  borderColor: border,
+                }}
+              >
+                <div>
+                  <p className="text-[11px] font-semibold">
+                    The original Conway rule set
+                  </p>
+                  <p
+                    className="mt-1 text-[10px]"
+                    style={{ color: muted }}
+                  >
+                    Birth at 3 · Survival at 2 or 3
+                  </p>
                 </div>
 
-                {/* Law 3 */}
                 <div
-                  className="p-4 rounded-xl border flex flex-col justify-between transition-colors space-y-2.5"
-                  style={{
-                    backgroundColor: theme.panelBg,
-                    borderColor: theme.borderSubtleColor || theme.borderColor,
-                  }}
+                  className="font-mono text-sm font-semibold"
+                  style={{ color: theme.accentColor }}
                 >
-                  <div className="flex items-center justify-between">
-                    <span className="font-mono text-[10px] font-semibold text-[#E16D6D] px-2 py-0.5 rounded bg-[#E16D6D]/15 border border-[#E16D6D]/30">
-                      DEATH BY OVERCROWD
-                    </span>
-                    <Skull className="w-4 h-4 text-[#E16D6D]" />
-                  </div>
-                  <div>
-                    <h3 className="font-semibold text-xs font-mono">3. Overpopulation</h3>
-                    <p className="text-[11px] mt-1 leading-relaxed" style={{ color: theme.textSecondary }}>
-                      Any living cell with <strong>&gt; 3</strong> living neighbours dies of overcrowding.
-                    </p>
-                  </div>
-                  <div className="text-[10px] font-mono opacity-80 pt-1 border-t" style={{ borderColor: theme.borderSubtleColor || theme.borderColor }}>
-                    Neighbors &gt; 3 → Cell dies
-                  </div>
-                </div>
-
-                {/* Law 4 */}
-                <div
-                  className="p-4 rounded-xl border flex flex-col justify-between transition-colors space-y-2.5"
-                  style={{
-                    backgroundColor: theme.panelBg,
-                    borderColor: theme.borderSubtleColor || theme.borderColor,
-                  }}
-                >
-                  <div className="flex items-center justify-between">
-                    <span
-                      className="font-mono text-[10px] font-semibold px-2 py-0.5 rounded border"
-                      style={{
-                        backgroundColor: `${theme.secondaryColor || theme.accentColor}18`,
-                        borderColor: `${theme.secondaryColor || theme.accentColor}40`,
-                        color: theme.secondaryColor || theme.accentColor,
-                      }}
-                    >
-                      BIRTH & GENESIS
-                    </span>
-                    <UserPlus className="w-4 h-4" style={{ color: theme.secondaryColor || theme.accentColor }} />
-                  </div>
-                  <div>
-                    <h3 className="font-semibold text-xs font-mono">4. Reproduction</h3>
-                    <p className="text-[11px] mt-1 leading-relaxed" style={{ color: theme.textSecondary }}>
-                      Any dead cell with <strong>exactly 3</strong> neighbours springs to life.
-                    </p>
-                  </div>
-                  <div className="text-[10px] font-mono opacity-80 pt-1 border-t" style={{ borderColor: theme.borderSubtleColor || theme.borderColor }}>
-                    Neighbors = 3 → Cell is born
-                  </div>
+                  B3 / S23
                 </div>
               </div>
             </div>
 
             {/* Footer */}
             <div
-              className="px-6 py-3.5 border-t flex justify-end transition-colors"
+              className="flex shrink-0 items-center justify-between border-t px-5 py-3"
               style={{
                 backgroundColor: theme.panelBg,
-                borderColor: theme.borderColor,
+                borderColor: border,
               }}
             >
+              <span
+                className="text-[10px]"
+                style={{ color: muted }}
+              >
+                Cellular automata reference
+              </span>
+
               <Dialog.Close asChild>
                 <button
-                  className="px-4 py-2 rounded-lg text-xs font-semibold shadow-sm transition-opacity hover:opacity-90 font-mono tracking-wide"
+                  type="button"
+                  className="px-4 py-2 text-xs font-medium transition-opacity hover:opacity-80 focus-visible:outline-none focus-visible:ring-2"
                   style={{
                     backgroundColor: theme.accentColor,
-                    color: theme.isLight ? '#FFFFFF' : '#0B0F0D',
+                    color: theme.isLight ? '#FFFFFF' : '#11170E',
                   }}
                 >
-                  GOT IT
+                  Close
                 </button>
               </Dialog.Close>
             </div>
